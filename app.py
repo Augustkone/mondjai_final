@@ -27,7 +27,7 @@ DATABASE_URL = os.environ.get(
     'postgresql://neondb_owner:npg_OwaFRn7C3LMB@ep-shiny-boat-apdc0eo2.c-7.us-east-1.aws.neon.tech/neondb?sslmode=require'
 )
 def get_db():
-    conn = psycopg2.connect(**DATABASE_URL)
+    conn = psycopg2.connect(DATABASE_URL)
     # Fix encodage Windows : PostgreSQL envoie parfois en WIN1252
     try:
         conn.set_client_encoding('UTF8')
