@@ -17,7 +17,7 @@ import os
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 
-app = Flask(__name__, template_folder='.')
+app = Flask(__name__, template_folder='.', static_folder='.', static_url_path='')
 app.secret_key = os.environ.get('SECRET_KEY', 'mondjai_secret_2026')
 
 
