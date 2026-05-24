@@ -1,0 +1,116 @@
+{% extends "base.html" %}
+{% block title %}Tableau de bord - Mondjai{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1 class="page-title">Tableau de bord</h1>
+    <p class="page-subtitle">{{ mois_nom }} {{ annee }}</p>
+  </div>
+  <a href="{{ url_for('ajouter') }}" class="btn btn--primary">+ Nouvelle depense</a>
+</div>
+
+<div class="kpi-grid">
+  <div class="kpi-card kpi-card--accent">
+    <div class="kpi-label">Total du mois</div>
+    <div class="kpi-value">{{ "{:,.0f}".format(stats.total_mois) }} <span class="kpi-currency">FCFA</span></div>
+    <div class="kpi-sub {% if variation > 0 %}kpi-sub--up{% elif variation < 0 %}kpi-sub--down{% endif %}">
+      {% if variation > 0 %}+{{ variation }}%{% elif variation < 0 %}{{ variation }}%{% else %}stable{% endif %}
+      vs mois precedent
+    </div>
+  </div>
+  <div class="kpi-card">
+    <div class="kpi-label">Moyenne / jour</div>
+    <div class="kpi-value">{{ "{:,.0f}".format(stats.moyenne_journaliere) }} <span class="kpi-currency">FCFA</span></div>
+    <div class="kpi-sub">{{ stats.nb_jours_actifs }} jours actifs</div>
+  </div>
+  <div class="kpi-card">
+    <div class="kpi-label">Transactions</div>
+    <div class="kpi-value">{{ stats.nb_depenses }}</div>
+    <div class="kpi-sub">ce mois-ci</div>
+  </div>
+  <div class="kpi-card">
+    <div class="kpi-label">Moy. / depense</div>
+    <div class="kpi-value">{{ "{:,.0f}".format(stats.moyenne_par_depense) }} <span class="kpi-currency">FCFA</span></div>
+    <div class="kpi-sub">montant moyen</div>
+  </div>
+</div>
+
+<div class="charts-grid">
+  <div class="chart-card chart-card--wide">
+    <h2 class="chart-title">Evolution sur 30 jours</h2>
+    <div class="chart-wrap"><canvas id="chartEvolution"></canvas></div>
+  </div>
+  <div class="chart-card">
+    <h2 class="chart-title">Repartition par categorie</h2>
+    <div class="chart-wrap chart-wrap--donut"><canvas id="chartRepartition"></canvas></div>
+  </div>
+</div>
+
+<div class="bottom-grid">
+  <div class="card">
+    <h2 class="card-title">Categories du mois</h2>
+    <ul class="cat-list">
+      {% set total_mois = stats.total_mois | float %}
+      {% for row in totaux %}
+        {% if row.total > 0 %}
+        <li class="cat-item">
+          <span class="cat-icone">{{ row.icone }}</span>
+          <div class="cat-info">
+            <span class="cat-nom">{{ row.categorie }}</span>
+            <div class="progress-bar">
+              <div class="progress-bar__fill" style="width:{{ ((row.total/total_mois*100) if total_mois>0 else 0)|round(1) }}%;background:{{ row.couleur }}"></div>
+            </div>
+          </div>
+          <div class="cat-montant">
+            <span>{{ "{:,.0f}".format(row.total) }} FCFA</span>
+            <small>{{ ((row.total/total_mois*100) if total_mois>0 else 0)|round(1) }}%</small>
+          </div>
+        </li>
+        {% endif %}
+      {% else %}
+        <li class="empty-state">Aucune depense ce mois-ci.</li>
+      {% endfor %}
+    </ul>
+  </div>
+  <div class="card">
+    <h2 class="card-title">Dernieres depenses</h2>
+    {% if dernieres %}
+    <ul class="recent-list">
+      {% for d in dernieres %}
+      <li class="recent-item">
+        <span class="recent-icone" style="background:{{ d.couleur }}22;color:{{ d.couleur }}">{{ d.icone }}</span>
+        <div class="recent-info">
+          <span class="recent-desc">{{ d.description or d.categorie }}</span>
+          <span class="recent-date">{{ d.date_depense }}</span>
+        </div>
+        <span class="recent-montant">{{ "{:,.0f}".format(d.montant) }} FCFA</span>
+      </li>
+      {% endfor %}
+    </ul>
+    <a href="{{ url_for('historique') }}" class="link-more">Voir tout l'historique</a>
+    {% else %}
+    <p class="empty-state">Aucune depense. <a href="{{ url_for('ajouter') }}" style="color:var(--accent)">Ajouter</a></p>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const evolutionData   = {{ evolution | tojson }};
+const repartitionData = {{ totaux    | tojson }};
+new Chart(document.getElementById('chartEvolution'), {
+  type:'bar',
+  data:{labels:evolutionData.map(r=>r.jour),datasets:[{label:'FCFA',data:evolutionData.map(r=>r.total),backgroundColor:'rgba(245,158,11,0.7)',borderColor:'#f59e0b',borderWidth:2,borderRadius:6}]},
+  options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{grid:{color:'rgba(255,255,255,0.05)'},ticks:{color:'#94a3b8',maxTicksLimit:10}},y:{grid:{color:'rgba(255,255,255,0.05)'},ticks:{color:'#94a3b8'}}}}
+});
+const actives=repartitionData.filter(r=>r.total>0);
+if(actives.length){
+  new Chart(document.getElementById('chartRepartition'),{
+    type:'doughnut',
+    data:{labels:actives.map(r=>r.icone+' '+r.categorie),datasets:[{data:actives.map(r=>r.total),backgroundColor:actives.map(r=>r.couleur),borderColor:'#0f172a',borderWidth:3,hoverOffset:10}]},
+    options:{responsive:true,maintainAspectRatio:false,cutout:'65%',plugins:{legend:{position:'bottom',labels:{color:'#cbd5e1',padding:12,font:{size:12}}}}}
+  });
+}
+</script>
+{% endblock %}
