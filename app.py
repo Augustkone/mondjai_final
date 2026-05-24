@@ -16,6 +16,7 @@ import string
 import os
 import json
 import urllib.request
+import google.generativeai as genai  
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 
@@ -75,8 +76,10 @@ except ImportError:
     SMTP_HOST          = 'smtp.gmail.com'
     SMTP_PORT          = 587
 
-# Cle API Anthropic pour l'agent IA
-ANTHROPIC_API_KEY = os.environ.get('ANTHROPIC_API_KEY', '')
+# GEMINI API
+GEMINI_API_KEY = os.environ.get('GEMINI_API_KEY', '')
+genai.configure(api_key=GEMINI_API_KEY)
+model = genai.GenerativeModel('gemini-1.5-flash')
 
 def generer_code():
     return ''.join(random.choices(string.digits, k=6))
@@ -580,108 +583,26 @@ def chat_ia():
 @app.route('/api/chat-ia', methods=['POST'])
 @login_requis
 def api_chat_ia():
-    """
-    Endpoint pour l'agent IA. Recoit l'historique du chat + contexte
-    financier de l'utilisateur, retourne la reponse de Claude.
-    """
-    if not ANTHROPIC_API_KEY:
-        return jsonify({'error': 'Cle API Anthropic non configuree.'}), 503
+    if not GEMINI_API_KEY:
+        return jsonify({'error': 'Cle API Gemini non configuree.'}), 503
 
-    data     = request.get_json(silent=True) or {}
+    data = request.get_json(silent=True) or {}
     messages = data.get('messages', [])
     if not messages:
         return jsonify({'error': 'Aucun message.'}), 400
 
-    user_id      = session['utilisateur_id']
-    mois_courant = date.today().strftime('%Y-%m')
-    conn, cur    = get_db()
-
-    # -- Contexte financier personnalise --
-    cur.execute("""
-        SELECT COALESCE(SUM(montant),0) AS total_mois,
-               COUNT(*) AS nb_depenses
-        FROM depenses
-        WHERE utilisateur_id=%s
-          AND DATE_TRUNC('month',date_depense)=DATE_TRUNC('month',CURRENT_DATE)
-    """, (user_id,))
-    stats_ia = cur.fetchone()
-
-    cur.execute("""
-        SELECT c.nom AS categorie, COALESCE(SUM(d.montant),0) AS total
-        FROM categories c
-        LEFT JOIN depenses d ON d.categorie_id=c.id AND d.utilisateur_id=%s
-            AND DATE_TRUNC('month',d.date_depense)=DATE_TRUNC('month',CURRENT_DATE)
-        GROUP BY c.nom ORDER BY total DESC LIMIT 5
-    """, (user_id,))
-    top_cats = cur.fetchall()
-
-    budget_info = get_budget_mois(cur, user_id, mois_courant)
-    cur.execute("SELECT nom FROM utilisateurs WHERE id=%s", (user_id,))
-    user_row = cur.fetchone()
-    conn.close()
-
-    total_mois = to_float(stats_ia['total_mois'])
-    budget_txt = "non defini"
-    objectif_txt = "non defini"
-    if budget_info:
-        budget_txt = f"{budget_info['montant_budget']:,.0f} FCFA"
-        if budget_info['objectif']:
-            objectif_txt = f"{budget_info['objectif']} ({budget_info['objectif_montant']:,.0f} FCFA)"
-    cats_txt = ", ".join(
-        f"{r['categorie']} ({to_float(r['total']):,.0f} FCFA)"
-        for r in top_cats if to_float(r['total']) > 0
-    ) or "aucune depense ce mois"
-
-    system_prompt = f"""Tu es Mondjai IA, un conseiller financier personnel bienveillant et expert,
-integre dans l'application Mondjai de gestion des depenses personnelles.
-
-PROFIL DE L'UTILISATEUR (mois en cours) :
-- Nom            : {user_row['nom']}
-- Total depense  : {total_mois:,.0f} FCFA
-- Nombre depenses: {int(stats_ia['nb_depenses'])}
-- Budget mensuel : {budget_txt}
-- Objectif       : {objectif_txt}
-- Top categories : {cats_txt}
-
-TES INSTRUCTIONS :
-1. Reponds toujours en francais, de facon claire, concise et amicale.
-2. Utilise les donnees financielles ci-dessus pour personnaliser tes conseils.
-3. Tu peux donner des conseils sur : economies, budgetisation, reduction des depenses,
-   investissement debutant, objectifs financiers.
-4. Si l'utilisateur depasse ou risque de depasser son budget, alerte-le avec empathie
-   et propose des solutions concretes.
-5. Ne fournis jamais de conseils medicaux, juridiques ou politiques.
-6. Reste toujours positif et motivant.
-7. Limite tes reponses a 3-4 paragraphes maximum pour rester lisible.
-8. Les montants sont en FCFA (franc CFA ouest-africain).
-"""
-
-    payload = json.dumps({
-        "model":      "claude-sonnet-4-20250514",
-        "max_tokens": 1024,
-        "system":     system_prompt,
-        "messages":   messages
-    }).encode('utf-8')
-
-    req = urllib.request.Request(
-        "https://api.anthropic.com/v1/messages",
-        data=payload,
-        headers={
-            "Content-Type":      "application/json",
-            "x-api-key":         ANTHROPIC_API_KEY,
-            "anthropic-version": "2023-06-01",
-        },
-        method="POST"
-    )
+    # ... (Garde ton code actuel qui récupère le contexte stats_ia, top_cats, etc.) ...
+    # ... (Garde ton bloc qui définit 'system_prompt') ...
 
     try:
-        with urllib.request.urlopen(req, timeout=30) as resp:
-            result      = json.loads(resp.read().decode('utf-8'))
-            answer_text = result['content'][0]['text']
-        return jsonify({'response': answer_text})
-    except urllib.error.HTTPError as e:
-        body = e.read().decode('utf-8')
-        return jsonify({'error': f"Erreur API : {body}"}), 502
+        # Création de l'historique au format attendu par Gemini
+        chat = model.start_chat(history=[])
+        
+        # On injecte le system_prompt comme première instruction
+        full_prompt = system_prompt + "\n\nHistorique de la discussion : " + str(messages)
+        
+        response = model.generate_content(full_prompt)
+        return jsonify({'response': response.text})
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
