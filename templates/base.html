@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>{% block title %}Mondjai{% endblock %}</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@600;700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js"></script>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}" />
+</head>
+<body class="{% if not session.utilisateur_id %}page-auth{% endif %}">
+
+{% with messages = get_flashed_messages(with_categories=true) %}
+  {% if messages %}
+    <div class="flash-wrapper {% if not session.utilisateur_id %}flash-wrapper--auth{% endif %}">
+      {% for cat, msg in messages %}
+        <div class="flash flash--{{ cat }}">
+          <span class="flash__icon">{% if cat == 'success' %}&#10003;{% elif cat == 'error' %}&#10007;{% else %}i{% endif %}</span>
+          <span class="flash__msg">{{ msg }}</span>
+          <button class="flash__close" onclick="dismissToast(this)">&times;</button>
+        </div>
+      {% endfor %}
+    </div>
+  {% endif %}
+{% endwith %}
+
+{% if session.utilisateur_id %}
+<aside class="sidebar">
+  <div class="sidebar__logo">
+    <span class="logo-icon">&#128176;</span>
+    <span class="logo-text">Mond<strong>jai</strong></span>
+  </div>
+  <nav class="sidebar__nav">
+    <a href="{{ url_for('index') }}" class="nav-link {% if request.endpoint=='index' %}active{% endif %}">
+      <span class="nav-icon">&#128202;</span> Tableau de bord
+    </a>
+    <a href="{{ url_for('ajouter') }}" class="nav-link {% if request.endpoint=='ajouter' %}active{% endif %}">
+      <span class="nav-icon">&#10133;</span> Ajouter
+    </a>
+    <a href="{{ url_for('historique') }}" class="nav-link {% if request.endpoint=='historique' %}active{% endif %}">
+      <span class="nav-icon">&#128203;</span> Historique
+    </a>
+  </nav>
+  <div class="sidebar__user">
+    <div class="user-avatar">{{ session.utilisateur_nom[0] | upper }}</div>
+    <div class="user-info">
+      <span class="user-nom">{{ session.utilisateur_nom }}</span>
+      <a href="{{ url_for('logout') }}" class="user-logout">Deconnexion</a>
+    </div>
+  </div>
+  <div class="sidebar__footer">ISE 2A 2026</div>
+</aside>
+{% endif %}
+
+<main class="main {% if not session.utilisateur_id %}main--auth{% endif %}">
+  {% block content %}{% endblock %}
+</main>
+
+<script>
+function dismissToast(btn) {
+  var toast = btn.parentElement;
+  toast.style.transition = 'opacity 0.3s ease, transform 0.3s ease';
+  toast.style.opacity = '0';
+  toast.style.transform = 'translateX(20px)';
+  setTimeout(function() { if(toast.parentNode) toast.parentNode.removeChild(toast); }, 300);
+}
+setTimeout(function() {
+  var toasts = document.querySelectorAll('.flash');
+  toasts.forEach(function(t) {
+    var btn = t.querySelector('.flash__close');
+    if(btn) dismissToast(btn);
+  });
+}, 5000);
+</script>
+
+{% block scripts %}{% endblock %}
+</body>
+</html>
