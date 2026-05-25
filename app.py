@@ -172,8 +172,8 @@ def register():
     if 'utilisateur_id' in session:
         return redirect(url_for('index'))
     if request.method == 'POST':
-        nom   = request.form.get('nom',          '').strip()
-        email = request.form.get('email',         '').strip().lower()
+        nom   = request.form.get('nom',           '').strip()
+        email = request.form.get('email',          '').strip().lower()
         mdp   = request.form.get('mot_de_passe',  '')
         mdp2  = request.form.get('mot_de_passe2', '')
         erreurs = []
@@ -572,15 +572,6 @@ def api_budget_status():
     })
 
 # ============================================================
-#  AGENT IA — Conseiller financier
-# ============================================================
-@app.route('/chat-ia')
-@login_requis
-def chat_ia():
-    return render_template('chat_ia.html')
-
-
-# ============================================================
 #  AGENT IA — Conseiller financier (VERSION COMPLÈTE)
 # ============================================================
 @app.route('/chat-ia')
@@ -635,6 +626,9 @@ def api_chat_ia():
         return jsonify({'response': response.text})
     except Exception as e:
         return jsonify({'error': str(e)}), 500
+
+# ============================================================
+#  AJOUTER / SUPPRIMER / MODIFIER
 # ============================================================
 @app.route('/ajouter', methods=['GET', 'POST'])
 @login_requis
@@ -697,9 +691,7 @@ def ajouter():
     conn.close()
     return render_template('ajouter.html', categories=categories, aujourd_hui=str(date.today()))
 
-# ============================================================
-#  HISTORIQUE
-# ============================================================
+
 @app.route('/historique')
 @login_requis
 def historique():
@@ -739,9 +731,7 @@ def historique():
         mois=mois, cat_id=cat_id, page=page, nb_pages=nb_pages,
         total=total, total_filtre=total_filtre)
 
-# ============================================================
-#  SUPPRIMER / MODIFIER
-# ============================================================
+
 @app.route('/supprimer/<int:dep_id>', methods=['POST'])
 @login_requis
 def supprimer(dep_id):
@@ -757,43 +747,58 @@ def supprimer(dep_id):
 @app.route('/modifier/<int:dep_id>', methods=['GET', 'POST'])
 @login_requis
 def modifier(dep_id):
+    user_id = session['utilisateur_id']
     conn, cur = get_db()
-    cur.execute("SELECT id,nom,icone FROM categories ORDER BY nom")
-    categories = cur.fetchall()
+    
+    if request.method == 'POST':
+        montant      = request.form.get('montant', '').replace(',', '.')
+        description  = request.form.get('description', '').strip()
+        categorie_id = request.form.get('categorie_id')
+        date_str     = request.form.get('date_depense', str(date.today()))
+        
+        erreurs = []
+        try:
+            montant = float(montant)
+            if montant <= 0: 
+                erreurs.append("Le montant doit etre positif.")
+        except ValueError:
+            erreurs.append("Montant invalide.")
+            
+        if not categorie_id: 
+            erreurs.append("Veuillez choisir une categorie.")
+            
+        if erreurs:
+            for e in erreurs: 
+                flash(e, 'error')
+        else:
+            cur.execute("""
+                UPDATE depenses 
+                SET montant=%s, description=%s, categorie_id=%s, date_depense=%s
+                WHERE id=%s AND utilisateur_id=%s
+            """, (montant, description or None, categorie_id, date_str, dep_id, user_id))
+            conn.commit()
+            flash("Depense modifiee avec succes !", 'success')
+            conn.close()
+            return redirect(url_for('historique'))
+            
+    # GET: Charger la dépense existante pour remplir le formulaire
     cur.execute("""
-        SELECT d.*,c.nom AS categorie_nom
-        FROM depenses d JOIN categories c ON c.id=d.categorie_id
-        WHERE d.id=%s AND d.utilisateur_id=%s
-    """, (dep_id, session['utilisateur_id']))
-    dep_raw = cur.fetchone()
-    if not dep_raw:
+        SELECT id, montant, description, date_depense::text, categorie_id 
+        FROM depenses 
+        WHERE id=%s AND utilisateur_id=%s
+    """, (dep_id, user_id))
+    depense = cur.fetchone()
+    
+    if not depense:
         conn.close()
         flash("Depense introuvable.", 'error')
         return redirect(url_for('historique'))
-    if request.method == 'POST':
-        montant      = request.form.get('montant','').replace(',','.')
-        description  = request.form.get('description','').strip()
-        categorie_id = request.form.get('categorie_id')
-        date_str     = request.form.get('date_depense')
-        try:
-            montant = float(montant)
-            cur.execute("""
-                UPDATE depenses SET montant=%s,description=%s,categorie_id=%s,date_depense=%s
-                WHERE id=%s AND utilisateur_id=%s
-            """, (montant, description or None, categorie_id, date_str,
-                  dep_id, session['utilisateur_id']))
-            conn.commit()
-            flash("Depense mise a jour !", 'success')
-            conn.close()
-            return redirect(url_for('historique'))
-        except ValueError:
-            flash("Montant invalide.", 'error')
+        
+    cur.execute("SELECT id, nom, icone FROM categories ORDER BY nom")
+    categories = cur.fetchall()
     conn.close()
-    dep = {**dict(dep_raw), 'montant': to_float(dep_raw['montant'])}
-    return render_template('modifier.html', dep=dep, categories=categories)
+    
+    return render_template('modifier.html', depense=depense, categories=categories)
 
-# ============================================================
-#  LANCEMENT
-# ============================================================
 if __name__ == '__main__':
-    app.run(debug=True, host='0.0.0.0', port=5000)
+    app.run(debug=True)
