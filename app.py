@@ -15,7 +15,7 @@ import random
 import string
 import os
 import json
-import google.generativeai as genai  
+import google.generativeai as genai
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 
@@ -65,7 +65,7 @@ def login_requis(f):
     return decorated
 
 # ============================================================
-#  EMAIL & SERVICES EXTÉRIEURS
+#  EMAIL
 # ============================================================
 try:
     from email_config import EMAIL_EXPEDITEUR, EMAIL_MOT_DE_PASSE, SMTP_HOST, SMTP_PORT
@@ -75,18 +75,11 @@ except ImportError:
     SMTP_HOST          = 'smtp.gmail.com'
     SMTP_PORT          = 587
 
-# CONFIGURATION GEMINI API
-GEMINI_API_KEY = os.environ.get('GEMINI_API_KEY')
+# ============================================================
+#  GEMINI — clé uniquement, RIEN d'autre au niveau module
+# ============================================================
+GEMINI_API_KEY = os.environ.get('GEMINI_API_KEY', '')
 
-# On ajoute cette vérification stricte :
-if not GEMINI_API_KEY:
-    raise ValueError("⚠️ ERREUR FATALE : La clé GEMINI_API_KEY est introuvable dans l'environnement Vercel.")
-
-genai.configure(api_key=GEMINI_API_KEY)
-gemini_model = genai.GenerativeModel(
-    model_name="gemini-2.0-flash",   
-    system_instruction=system_prompt
-)
 def generer_code():
     return ''.join(random.choices(string.digits, k=6))
 
@@ -117,7 +110,7 @@ def envoyer_email_reset(destinataire, nom, code):
 
 def envoyer_email_alerte_budget(destinataire, nom, pourcentage, total, budget, mois_nom):
     msg            = MIMEMultipart('alternative')
-    msg['Subject'] = f"[Mondjai] ⚠️ Alerte budget — {pourcentage:.0f}% utilise"
+    msg['Subject'] = f"[Mondjai] Alerte budget — {pourcentage:.0f}% utilise"
     msg['From']    = EMAIL_EXPEDITEUR
     msg['To']      = destinataire
     restant        = budget - total
@@ -127,17 +120,13 @@ def envoyer_email_alerte_budget(destinataire, nom, pourcentage, total, budget, m
                 background:#0f172a;color:#e2e8f0;padding:2rem;border-radius:12px;">
       <h2 style="color:#f59e0b;">Mondjai ⚠️</h2>
       <p>Bonjour <strong>{nom}</strong>,</p>
-      <p>Votre budget du mois de <strong>{mois_nom}</strong> est a <strong
-         style="color:{couleur_barre};">{pourcentage:.0f}%</strong> de son utilisation.</p>
+      <p>Votre budget de <strong>{mois_nom}</strong> est a
+         <strong style="color:{couleur_barre};">{pourcentage:.0f}%</strong>.</p>
       <div style="background:#1e293b;border-radius:8px;padding:1rem;margin:1rem 0;">
-        <p style="margin:0.3rem 0;">💰 Budget mensuel : <strong>{budget:,.0f} FCFA</strong></p>
-        <p style="margin:0.3rem 0;">📊 Depenses actuelles : <strong style="color:{couleur_barre};">{total:,.0f} FCFA</strong></p>
+        <p style="margin:0.3rem 0;">💰 Budget : <strong>{budget:,.0f} FCFA</strong></p>
+        <p style="margin:0.3rem 0;">📊 Depenses : <strong style="color:{couleur_barre};">{total:,.0f} FCFA</strong></p>
         <p style="margin:0.3rem 0;">🟢 Restant : <strong style="color:#10b981;">{restant:,.0f} FCFA</strong></p>
       </div>
-      <div style="background:#1e293b;border-radius:8px;height:12px;overflow:hidden;margin:1rem 0;">
-        <div style="background:{couleur_barre};width:{min(pourcentage,100):.0f}%;height:100%;transition:width 0.3s;"></div>
-      </div>
-      <p>Pensez a ajuster vos depenses pour rester dans les limites de votre budget.</p>
       <p style="color:#64748b;font-size:0.8rem;">Mondjai - ENSEA 2026</p>
     </div>"""
     msg.attach(MIMEText(html, 'html', 'utf-8'))
@@ -151,8 +140,7 @@ def get_budget_mois(cur, user_id, mois=None):
         mois = date.today().strftime('%Y-%m')
     cur.execute("""
         SELECT montant_budget, objectif, objectif_montant, seuil_alerte, alerte_envoyee
-        FROM budgets
-        WHERE utilisateur_id=%s AND mois=%s
+        FROM budgets WHERE utilisateur_id=%s AND mois=%s
     """, (user_id, mois))
     row = cur.fetchone()
     if not row:
@@ -173,9 +161,9 @@ def register():
     if 'utilisateur_id' in session:
         return redirect(url_for('index'))
     if request.method == 'POST':
-        nom   = request.form.get('nom',              '').strip()
-        email = request.form.get('email',           '').strip().lower()
-        mdp   = request.form.get('mot_de_passe',   '')
+        nom   = request.form.get('nom',          '').strip()
+        email = request.form.get('email',         '').strip().lower()
+        mdp   = request.form.get('mot_de_passe',  '')
         mdp2  = request.form.get('mot_de_passe2', '')
         erreurs = []
         if not nom:          erreurs.append("Le nom est requis.")
@@ -236,9 +224,7 @@ def logout():
 def mot_de_passe_oublie():
     if request.method == 'GET':
         return render_template('mot_de_passe_oublie.html', etape='saisir_email')
-
     etape = request.form.get('etape')
-
     if etape == 'envoyer_code':
         email = request.form.get('email', '').strip().lower()
         conn, cur = get_db()
@@ -261,7 +247,6 @@ def mot_de_passe_oublie():
             flash(f"Erreur envoi email : {e}", 'error')
             return render_template('mot_de_passe_oublie.html', etape='saisir_email')
         return render_template('mot_de_passe_oublie.html', etape='saisir_code', email=email)
-
     if etape == 'verifier_code':
         email = request.form.get('email', '').strip().lower()
         code  = request.form.get('code',  '').strip()
@@ -277,7 +262,6 @@ def mot_de_passe_oublie():
             return render_template('mot_de_passe_oublie.html', etape='saisir_email')
         flash("Code correct !", 'success')
         return render_template('mot_de_passe_oublie.html', etape='nouveau_mdp', email=email, code=code)
-
     if etape == 'changer_mdp':
         email        = request.form.get('email',        '').strip().lower()
         code         = request.form.get('code',         '').strip()
@@ -306,7 +290,6 @@ def mot_de_passe_oublie():
         conn.close()
         flash("Mot de passe modifie ! Connectez-vous.", 'success')
         return redirect(url_for('login'))
-
     return redirect(url_for('mot_de_passe_oublie'))
 
 # ============================================================
@@ -315,11 +298,10 @@ def mot_de_passe_oublie():
 @app.route('/')
 @login_requis
 def index():
-    user_id = session['utilisateur_id']
+    user_id      = session['utilisateur_id']
     mois_courant = date.today().strftime('%Y-%m')
-    conn, cur = get_db()
+    conn, cur    = get_db()
 
-    # --- Stats du mois ---
     cur.execute("""
         SELECT COALESCE(SUM(montant),0) AS total_mois,
                COALESCE(AVG(montant),0) AS moyenne_par_depense,
@@ -364,8 +346,7 @@ def index():
         WHERE utilisateur_id=%s
           AND DATE_TRUNC('month',date_depense)=DATE_TRUNC('month',CURRENT_DATE)-INTERVAL '1 month'
     """, (user_id,))
-    mois_prec = cur.fetchone()
-
+    mois_prec   = cur.fetchone()
     budget_info = get_budget_mois(cur, user_id, mois_courant)
     conn.close()
 
@@ -381,15 +362,9 @@ def index():
     dernieres = [{**dict(r), 'montant': to_float(r['montant'])} for r in dernieres_raw]
     total_prec   = to_float(mois_prec['total'])
     total_actuel = stats['total_mois']
-    variation    = round(((total_actuel-total_prec)/total_prec)*100,1) if total_prec>0 else 0
+    variation    = round(((total_actuel - total_prec) / total_prec) * 100, 1) if total_prec > 0 else 0
 
-    dates_graph = [row['jour'] for row in evolution]
-    montants_graph = [float(row['total']) for row in evolution]
-    
-    cats_graph = [row['categorie'] for row in totaux if row['total'] > 0]
-    cats_montants = [float(row['total']) for row in totaux if row['total'] > 0]
-
-    alerte_budget = None
+    alerte_budget      = None
     pourcentage_budget = 0
     if budget_info and budget_info['montant_budget'] > 0:
         pourcentage_budget = (total_actuel / budget_info['montant_budget']) * 100
@@ -407,11 +382,7 @@ def index():
         budget_info=budget_info,
         pourcentage_budget=round(pourcentage_budget, 1),
         alerte_budget=alerte_budget,
-        mois_courant=mois_courant,
-        dates_graph=dates_graph,
-        montants_graph=montants_graph,
-        cats_graph=cats_graph,
-        cats_montants=cats_montants)
+        mois_courant=mois_courant)
 
 # ============================================================
 #  BUDGET & OBJECTIFS
@@ -429,7 +400,6 @@ def budget():
         objectif_montant = request.form.get('objectif_montant', '0').replace(',', '.')
         seuil_alerte     = request.form.get('seuil_alerte', '80')
         mois_cible       = request.form.get('mois', mois_courant)
-
         erreurs = []
         try:
             montant_budget = float(montant_budget)
@@ -446,7 +416,6 @@ def budget():
             seuil_alerte = max(10, min(100, seuil_alerte))
         except ValueError:
             seuil_alerte = 80
-
         if not erreurs:
             cur.execute("""
                 INSERT INTO budgets (utilisateur_id, mois, montant_budget, objectif,
@@ -468,43 +437,32 @@ def budget():
             flash(e, 'error')
 
     cur.execute("""
-        SELECT b.mois,
-               b.montant_budget,
-               b.objectif,
-               b.objectif_montant,
-               b.seuil_alerte,
+        SELECT b.mois, b.montant_budget, b.objectif, b.objectif_montant, b.seuil_alerte,
                COALESCE(SUM(d.montant),0) AS total_depense
         FROM budgets b
         LEFT JOIN depenses d ON d.utilisateur_id=b.utilisateur_id
             AND TO_CHAR(d.date_depense,'YYYY-MM')=b.mois
         WHERE b.utilisateur_id=%s
         GROUP BY b.mois, b.montant_budget, b.objectif, b.objectif_montant, b.seuil_alerte
-        ORDER BY b.mois DESC
-        LIMIT 6
+        ORDER BY b.mois DESC LIMIT 6
     """, (user_id,))
     historique_budgets_raw = cur.fetchall()
-
     budget_actuel = get_budget_mois(cur, user_id, mois_courant)
-
     cur.execute("""
         SELECT COALESCE(SUM(montant),0) AS total FROM depenses
-        WHERE utilisateur_id=%s
-          AND TO_CHAR(date_depense,'YYYY-MM')=%s
+        WHERE utilisateur_id=%s AND TO_CHAR(date_depense,'YYYY-MM')=%s
     """, (user_id, mois_courant))
     total_actuel = to_float(cur.fetchone()['total'])
-
     conn.close()
 
     historique_budgets = []
     for row in historique_budgets_raw:
-        b   = dict(row)
+        b = dict(row)
         b['montant_budget']   = to_float(b['montant_budget'])
         b['objectif_montant'] = to_float(b['objectif_montant'])
         b['total_depense']    = to_float(b['total_depense'])
-        b['pourcentage'] = round(
-            (b['total_depense'] / b['montant_budget'] * 100)
-            if b['montant_budget'] > 0 else 0, 1
-        )
+        b['pourcentage']      = round(
+            (b['total_depense'] / b['montant_budget'] * 100) if b['montant_budget'] > 0 else 0, 1)
         historique_budgets.append(b)
 
     pourcentage_actuel = 0
@@ -512,12 +470,9 @@ def budget():
         pourcentage_actuel = round(total_actuel / budget_actuel['montant_budget'] * 100, 1)
 
     return render_template('budget.html',
-        budget_actuel=budget_actuel,
-        total_actuel=total_actuel,
-        pourcentage_actuel=pourcentage_actuel,
-        historique_budgets=historique_budgets,
-        mois_courant=mois_courant,
-        mois_nom=calendar.month_name[date.today().month],
+        budget_actuel=budget_actuel, total_actuel=total_actuel,
+        pourcentage_actuel=pourcentage_actuel, historique_budgets=historique_budgets,
+        mois_courant=mois_courant, mois_nom=calendar.month_name[date.today().month],
         annee=date.today().year)
 
 
@@ -527,109 +482,142 @@ def api_budget_status():
     user_id      = session['utilisateur_id']
     mois_courant = date.today().strftime('%Y-%m')
     conn, cur    = get_db()
-
-    budget_info = get_budget_mois(cur, user_id, mois_courant)
+    budget_info  = get_budget_mois(cur, user_id, mois_courant)
     cur.execute("""
         SELECT COALESCE(SUM(montant),0) AS total FROM depenses
         WHERE utilisateur_id=%s AND TO_CHAR(date_depense,'YYYY-MM')=%s
     """, (user_id, mois_courant))
     total = to_float(cur.fetchone()['total'])
-
     if not budget_info or budget_info['montant_budget'] == 0:
         conn.close()
         return jsonify({'has_budget': False})
-
     budget      = budget_info['montant_budget']
     pourcentage = round(total / budget * 100, 1)
     restant     = max(0, budget - total)
     alerte      = pourcentage >= budget_info['seuil_alerte']
-
     if alerte and not budget_info['alerte_envoyee'] and EMAIL_EXPEDITEUR:
         try:
             cur.execute("SELECT nom, email FROM utilisateurs WHERE id=%s", (user_id,))
-            user_row  = cur.fetchone()
-            mois_nom  = calendar.month_name[date.today().month]
+            user_row = cur.fetchone()
             envoyer_email_alerte_budget(
                 user_row['email'], user_row['nom'],
-                pourcentage, total, budget, mois_nom
+                pourcentage, total, budget,
+                calendar.month_name[date.today().month]
             )
-            cur.execute("""
-                UPDATE budgets SET alerte_envoyee=TRUE
-                WHERE utilisateur_id=%s AND mois=%s
-            """, (user_id, mois_courant))
+            cur.execute("UPDATE budgets SET alerte_envoyee=TRUE WHERE utilisateur_id=%s AND mois=%s",
+                        (user_id, mois_courant))
             conn.commit()
         except Exception:
             pass
-
     conn.close()
     return jsonify({
-        'has_budget':   True,
-        'budget':       budget,
-        'total':        total,
-        'restant':      restant,
-        'pourcentage':  pourcentage,
-        'seuil':        budget_info['seuil_alerte'],
-        'alerte':       alerte,
-        'critique':     pourcentage >= 100,
-        'objectif':     budget_info['objectif'],
+        'has_budget': True, 'budget': budget, 'total': total,
+        'restant': restant, 'pourcentage': pourcentage,
+        'seuil': budget_info['seuil_alerte'], 'alerte': alerte,
+        'critique': pourcentage >= 100,
+        'objectif': budget_info['objectif'],
         'objectif_montant': budget_info['objectif_montant'],
     })
 
 # ============================================================
-#  AGENT IA — Conseiller financier
+#  AGENT IA — UNE seule route /chat-ia + UNE seule /api/chat-ia
 # ============================================================
 @app.route('/chat-ia')
 @login_requis
 def chat_ia():
     return render_template('chat_ia.html')
 
+
 @app.route('/api/chat-ia', methods=['POST'])
 @login_requis
 def api_chat_ia():
     if not GEMINI_API_KEY:
-        return jsonify({'error': 'Clé API Gemini non configurée.'}), 503
+        return jsonify({'error': 'Cle API Gemini non configuree. Ajoutez GEMINI_API_KEY dans Vercel > Settings > Environment Variables.'}), 503
 
-    data = request.get_json(silent=True) or {}
+    data     = request.get_json(silent=True) or {}
     messages = data.get('messages', [])
     if not messages:
         return jsonify({'error': 'Aucun message.'}), 400
 
-    user_id = session['utilisateur_id']
-    conn, cur = get_db()
-    
+    user_id      = session['utilisateur_id']
+    mois_courant = date.today().strftime('%Y-%m')
+    conn, cur    = get_db()
+
     cur.execute("""
-        SELECT d.montant, d.description, c.nom as categorie, d.date_depense::text
-        FROM depenses d 
-        JOIN categories c ON d.categorie_id = c.id
-        WHERE d.utilisateur_id = %s
-        ORDER BY d.date_depense DESC LIMIT 10
+        SELECT COALESCE(SUM(montant),0) AS total_mois, COUNT(*) AS nb_depenses
+        FROM depenses
+        WHERE utilisateur_id=%s
+          AND DATE_TRUNC('month',date_depense)=DATE_TRUNC('month',CURRENT_DATE)
     """, (user_id,))
-    rows = cur.fetchall()
+    stats_ia = cur.fetchone()
+
+    cur.execute("""
+        SELECT c.nom AS categorie, COALESCE(SUM(d.montant),0) AS total
+        FROM categories c
+        LEFT JOIN depenses d ON d.categorie_id=c.id AND d.utilisateur_id=%s
+            AND DATE_TRUNC('month',d.date_depense)=DATE_TRUNC('month',CURRENT_DATE)
+        GROUP BY c.nom ORDER BY total DESC LIMIT 5
+    """, (user_id,))
+    top_cats = cur.fetchall()
+
+    budget_info = get_budget_mois(cur, user_id, mois_courant)
+    cur.execute("SELECT nom FROM utilisateurs WHERE id=%s", (user_id,))
+    user_row = cur.fetchone()
     conn.close()
 
-    # CORRECTION : Formatage propre en JSON lisible pour le modèle Gemini
-    historique_str = json.dumps([{**dict(r), 'montant': float(r['montant'])} for r in rows], ensure_ascii=False)
+    total_mois   = to_float(stats_ia['total_mois'])
+    budget_txt   = "non defini"
+    objectif_txt = "non defini"
+    if budget_info:
+        budget_txt = f"{budget_info['montant_budget']:,.0f} FCFA"
+        if budget_info['objectif']:
+            objectif_txt = f"{budget_info['objectif']} ({budget_info['objectif_montant']:,.0f} FCFA)"
+    cats_txt = ", ".join(
+        f"{r['categorie']} ({to_float(r['total']):,.0f} FCFA)"
+        for r in top_cats if to_float(r['total']) > 0
+    ) or "aucune depense ce mois"
 
-    user_message = messages[-1]['content']
-    prompt_complet = f"""
-    Tu es Mondjai IA, un conseiller financier personnel expert et bienveillant.
-    Ton rôle est d'aider l'utilisateur à gérer son budget.
-    Voici ses dernières dépenses réelles enregistrées en BDD (format JSON) : {historique_str}.
-    Utilise intelligemment ces données pour lui donner des conseils précis s'il pose des questions sur ses dépenses.
-    
-    Règles strictes : Sois très concis, utilise des emojis, et exprime les montants en FCFA.
-    
-    Message de l'utilisateur : {user_message}
-    """
+    system_prompt = f"""Tu es Mondjai IA, un conseiller financier personnel bienveillant et expert.
+Tu es integre dans l'application Mondjai de gestion des depenses personnelles.
+
+PROFIL UTILISATEUR (mois en cours) :
+- Nom             : {user_row['nom']}
+- Total depense   : {total_mois:,.0f} FCFA
+- Nb depenses     : {int(stats_ia['nb_depenses'])}
+- Budget mensuel  : {budget_txt}
+- Objectif        : {objectif_txt}
+- Top categories  : {cats_txt}
+
+REGLES :
+1. Reponds toujours en francais, de facon claire et amicale.
+2. Utilise les donnees financieres ci-dessus pour personnaliser tes conseils.
+3. Conseils sur : economies, budgetisation, reduction des depenses, investissement debutant.
+4. Si l'utilisateur risque de depasser son budget, alerte-le avec empathie.
+5. Pas de conseils medicaux, juridiques ou politiques.
+6. Reste positif et motivant. Maximum 3-4 paragraphes.
+7. Les montants sont en FCFA (franc CFA ouest-africain)."""
 
     try:
-        response = model.generate_content(prompt_complet)
+        # Tout se passe ICI dans la route, jamais au niveau module
+        genai.configure(api_key=GEMINI_API_KEY)
+        gemini_model = genai.GenerativeModel(
+            model_name="gemini-2.0-flash",
+            system_instruction=system_prompt
+        )
+        gemini_history = []
+        for msg in messages[:-1]:
+            gemini_history.append({
+                "role":  "user" if msg["role"] == "user" else "model",
+                "parts": [msg["content"]]
+            })
+        chat     = gemini_model.start_chat(history=gemini_history)
+        response = chat.send_message(messages[-1]["content"])
         return jsonify({'response': response.text})
     except Exception as e:
-        return jsonify({'error': str(e)}), 500
+        return jsonify({'error': f"Erreur Gemini : {str(e)}"}), 500
 
 # ============================================================
-#  AJOUTER / SUPPRIMER / MODIFIER
+#  AJOUTER
 # ============================================================
 @app.route('/ajouter', methods=['GET', 'POST'])
 @login_requis
@@ -638,8 +626,8 @@ def ajouter():
     cur.execute("SELECT id,nom,icone FROM categories ORDER BY nom")
     categories = cur.fetchall()
     if request.method == 'POST':
-        montant      = request.form.get('montant','').replace(',','.')
-        description  = request.form.get('description','').strip()
+        montant      = request.form.get('montant', '').replace(',', '.')
+        description  = request.form.get('description', '').strip()
         categorie_id = request.form.get('categorie_id')
         date_str     = request.form.get('date_depense', str(date.today()))
         erreurs = []
@@ -658,7 +646,6 @@ def ajouter():
             """, (montant, description or None, categorie_id, date_str, session['utilisateur_id']))
             conn.commit()
             flash(f"Depense de {montant:,.0f} FCFA ajoutee !", 'success')
-
             user_id      = session['utilisateur_id']
             mois_courant = date.today().strftime('%Y-%m')
             budget_info  = get_budget_mois(cur, user_id, mois_courant)
@@ -667,8 +654,8 @@ def ajouter():
                     SELECT COALESCE(SUM(montant),0) AS total FROM depenses
                     WHERE utilisateur_id=%s AND TO_CHAR(date_depense,'YYYY-MM')=%s
                 """, (user_id, mois_courant))
-                total_now   = to_float(cur.fetchone()['total'])
-                pct         = total_now / budget_info['montant_budget'] * 100
+                total_now = to_float(cur.fetchone()['total'])
+                pct = total_now / budget_info['montant_budget'] * 100
                 if pct >= budget_info['seuil_alerte'] and not budget_info['alerte_envoyee']:
                     if EMAIL_EXPEDITEUR:
                         try:
@@ -691,7 +678,9 @@ def ajouter():
     conn.close()
     return render_template('ajouter.html', categories=categories, aujourd_hui=str(date.today()))
 
-
+# ============================================================
+#  HISTORIQUE
+# ============================================================
 @app.route('/historique')
 @login_requis
 def historique():
@@ -701,8 +690,6 @@ def historique():
     cat_id   = request.args.get('categorie', '')
     page     = max(1, int(request.args.get('page', 1)))
     par_page = 15
-    
-    # Correction format date sécurisé
     mois_cible = mois + '-01' if len(mois) == 7 else date.today().strftime('%Y-%m') + '-01'
     params = [user_id, mois_cible]
     where  = ["d.utilisateur_id=%s",
@@ -714,14 +701,14 @@ def historique():
     cur.execute(f"SELECT COUNT(*) AS n FROM depenses d WHERE {where_sql}", params)
     total    = cur.fetchone()['n']
     nb_pages = max(1, -(-total // par_page))
-    offset   = (page-1)*par_page
+    offset   = (page - 1) * par_page
     cur.execute(f"""
         SELECT d.id,d.montant,d.description,d.date_depense::text,
                c.nom AS categorie,c.couleur,c.icone
         FROM depenses d JOIN categories c ON c.id=d.categorie_id
         WHERE {where_sql} ORDER BY d.date_depense DESC,d.created_at DESC
         LIMIT %s OFFSET %s
-    """, params+[par_page, offset])
+    """, params + [par_page, offset])
     depenses_raw = cur.fetchall()
     cur.execute(f"SELECT COALESCE(SUM(d.montant),0) AS total FROM depenses d WHERE {where_sql}", params)
     total_filtre = to_float(cur.fetchone()['total'])
@@ -734,7 +721,9 @@ def historique():
         mois=mois, cat_id=cat_id, page=page, nb_pages=nb_pages,
         total=total, total_filtre=total_filtre)
 
-
+# ============================================================
+#  SUPPRIMER / MODIFIER
+# ============================================================
 @app.route('/supprimer/<int:dep_id>', methods=['POST'])
 @login_requis
 def supprimer(dep_id):
@@ -752,53 +741,45 @@ def supprimer(dep_id):
 def modifier(dep_id):
     user_id = session['utilisateur_id']
     conn, cur = get_db()
-    
     cur.execute("""
-        SELECT id, montant, description, categorie_id, date_depense::text 
-        FROM depenses 
-        WHERE id=%s AND utilisateur_id=%s
+        SELECT id, montant, description, categorie_id, date_depense::text
+        FROM depenses WHERE id=%s AND utilisateur_id=%s
     """, (dep_id, user_id))
     depense = cur.fetchone()
-    
     if not depense:
         conn.close()
-        flash("Depense introuvable ou non autorisee.", 'error')
+        flash("Depense introuvable.", 'error')
         return redirect(url_for('historique'))
-        
     cur.execute("SELECT id, nom, icone FROM categories ORDER BY nom")
     categories = cur.fetchall()
-    
-    # CORRECTION : Bloc complet et finalisation de la méthode POST
     if request.method == 'POST':
         montant      = request.form.get('montant', '').replace(',', '.')
         description  = request.form.get('description', '').strip()
         categorie_id = request.form.get('categorie_id')
         date_str     = request.form.get('date_depense')
-        
         erreurs = []
         try:
             montant = float(montant)
-            if montant <= 0: erreurs.append("Le montant doit être positif.")
+            if montant <= 0: erreurs.append("Le montant doit etre positif.")
         except ValueError:
             erreurs.append("Montant invalide.")
-        if not categorie_id: erreurs.append("Veuillez choisir une catégorie.")
-        
+        if not categorie_id: erreurs.append("Veuillez choisir une categorie.")
         if erreurs:
             for e in erreurs: flash(e, 'error')
         else:
             cur.execute("""
-                UPDATE depenses 
-                SET montant=%s, description=%s, categorie_id=%s, date_depense=%s
+                UPDATE depenses SET montant=%s, description=%s, categorie_id=%s, date_depense=%s
                 WHERE id=%s AND utilisateur_id=%s
             """, (montant, description or None, categorie_id, date_str, dep_id, user_id))
             conn.commit()
-            flash("Dépense mise à jour avec succès !", 'success')
+            flash("Depense mise a jour !", 'success')
             conn.close()
             return redirect(url_for('historique'))
-            
     conn.close()
     return render_template('modifier.html', depense=depense, categories=categories)
 
-# Lancement de l'application Flask
+# ============================================================
+#  LANCEMENT
+# ============================================================
 if __name__ == '__main__':
     app.run(debug=True)
