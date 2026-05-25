@@ -10,7 +10,6 @@
   <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}" />
 </head>
 <body class="{% if not session.utilisateur_id %}page-auth{% endif %}">
-
 {% with messages = get_flashed_messages(with_categories=true) %}
   {% if messages %}
     <div class="flash-wrapper {% if not session.utilisateur_id %}flash-wrapper--auth{% endif %}">
@@ -41,6 +40,12 @@
     <a href="{{ url_for('historique') }}" class="nav-link {% if request.endpoint=='historique' %}active{% endif %}">
       <span class="nav-icon">&#128203;</span> Historique
     </a>
+    <a href="{{ url_for('budget') }}" class="nav-link {% if request.endpoint=='budget' %}active{% endif %}">
+      <span class="nav-icon">&#128181;</span> Budget
+    </a>
+    <a href="{{ url_for('chat_ia') }}" class="nav-link {% if request.endpoint=='chat_ia' %}active{% endif %}">
+      <span class="nav-icon">&#129302;</span> Conseiller IA
+    </a>
   </nav>
   <div class="sidebar__user">
     <div class="user-avatar">{{ session.utilisateur_nom[0] | upper }}</div>
@@ -66,14 +71,12 @@ function dismissToast(btn) {
   setTimeout(function() { if(toast.parentNode) toast.parentNode.removeChild(toast); }, 300);
 }
 setTimeout(function() {
-  var toasts = document.querySelectorAll('.flash');
-  toasts.forEach(function(t) {
+  document.querySelectorAll('.flash').forEach(function(t) {
     var btn = t.querySelector('.flash__close');
     if(btn) dismissToast(btn);
   });
 }, 5000);
 </script>
-
 {% block scripts %}{% endblock %}
 </body>
 </html>
