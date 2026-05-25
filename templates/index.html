@@ -13,27 +13,8 @@
   <div class="kpi-card kpi-card--accent">
     <div class="kpi-label">Total du mois</div>
     <div class="kpi-value">{{ "{:,.0f}".format(stats.total_mois) }} <span class="kpi-currency">FCFA</span></div>
-    <div class="kpi-sub {% if variation > 0 %}kpi-sub--up{% elif variation < 0 %}kpi-sub--down{% endif %}">
-      {% if variation > 0 %}+{{ variation }}%{% elif variation < 0 %}{{ variation }}%{% else %}stable{% endif %}
-      vs mois precedent
-    </div>
   </div>
-  <div class="kpi-card">
-    <div class="kpi-label">Moyenne / jour</div>
-    <div class="kpi-value">{{ "{:,.0f}".format(stats.moyenne_journaliere) }} <span class="kpi-currency">FCFA</span></div>
-    <div class="kpi-sub">{{ stats.nb_jours_actifs }} jours actifs</div>
   </div>
-  <div class="kpi-card">
-    <div class="kpi-label">Transactions</div>
-    <div class="kpi-value">{{ stats.nb_depenses }}</div>
-    <div class="kpi-sub">ce mois-ci</div>
-  </div>
-  <div class="kpi-card">
-    <div class="kpi-label">Moy. / depense</div>
-    <div class="kpi-value">{{ "{:,.0f}".format(stats.moyenne_par_depense) }} <span class="kpi-currency">FCFA</span></div>
-    <div class="kpi-sub">montant moyen</div>
-  </div>
-</div>
 
 <div class="charts-grid">
   <div class="chart-card chart-card--wide">
@@ -46,71 +27,61 @@
   </div>
 </div>
 
+<div class="card" style="margin-top: 20px; border: 1px solid #334155;">
+  <h2 class="card-title">Mondjai IA</h2>
+  <div id="chat-messages" style="height: 250px; overflow-y: auto; margin-bottom: 15px; padding: 15px; background: #0f172a; border-radius: 8px; border: 1px solid #1e293b;">
+    <p style="color: #94a3b8; font-size: 0.9em;">Bonjour ! Je suis Mondjai IA. Posez-moi une question sur vos finances.</p>
+  </div>
+  <div style="display: flex; gap: 10px;">
+    <input type="text" id="user-input" placeholder="Ex: Comment puis-je réduire mes dépenses ?" style="flex-grow: 1; padding: 10px; border-radius: 6px; border: 1px solid #334155; background: #1e293b; color: white;">
+    <button onclick="envoyerMessage()" style="padding: 10px 20px; background: #f59e0b; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; color: #0f172a;">Envoyer</button>
+  </div>
+</div>
+
 <div class="bottom-grid">
   <div class="card">
     <h2 class="card-title">Categories du mois</h2>
-    <ul class="cat-list">
-      {% set total_mois = stats.total_mois | float %}
-      {% for row in totaux %}
-        {% if row.total > 0 %}
-        <li class="cat-item">
-          <span class="cat-icone">{{ row.icone }}</span>
-          <div class="cat-info">
-            <span class="cat-nom">{{ row.categorie }}</span>
-            <div class="progress-bar">
-              <div class="progress-bar__fill" style="width:{{ ((row.total/total_mois*100) if total_mois>0 else 0)|round(1) }}%;background:{{ row.couleur }}"></div>
-            </div>
-          </div>
-          <div class="cat-montant">
-            <span>{{ "{:,.0f}".format(row.total) }} FCFA</span>
-            <small>{{ ((row.total/total_mois*100) if total_mois>0 else 0)|round(1) }}%</small>
-          </div>
-        </li>
-        {% endif %}
-      {% else %}
-        <li class="empty-state">Aucune depense ce mois-ci.</li>
-      {% endfor %}
-    </ul>
-  </div>
+    </div>
   <div class="card">
     <h2 class="card-title">Dernieres depenses</h2>
-    {% if dernieres %}
-    <ul class="recent-list">
-      {% for d in dernieres %}
-      <li class="recent-item">
-        <span class="recent-icone" style="background:{{ d.couleur }}22;color:{{ d.couleur }}">{{ d.icone }}</span>
-        <div class="recent-info">
-          <span class="recent-desc">{{ d.description or d.categorie }}</span>
-          <span class="recent-date">{{ d.date_depense }}</span>
-        </div>
-        <span class="recent-montant">{{ "{:,.0f}".format(d.montant) }} FCFA</span>
-      </li>
-      {% endfor %}
-    </ul>
-    <a href="{{ url_for('historique') }}" class="link-more">Voir tout l'historique</a>
-    {% else %}
-    <p class="empty-state">Aucune depense. <a href="{{ url_for('ajouter') }}" style="color:var(--accent)">Ajouter</a></p>
-    {% endif %}
-  </div>
+    </div>
 </div>
 {% endblock %}
 
 {% block scripts %}
 <script>
-const evolutionData   = {{ evolution | tojson }};
-const repartitionData = {{ totaux    | tojson }};
-new Chart(document.getElementById('chartEvolution'), {
-  type:'bar',
-  data:{labels:evolutionData.map(r=>r.jour),datasets:[{label:'FCFA',data:evolutionData.map(r=>r.total),backgroundColor:'rgba(245,158,11,0.7)',borderColor:'#f59e0b',borderWidth:2,borderRadius:6}]},
-  options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{grid:{color:'rgba(255,255,255,0.05)'},ticks:{color:'#94a3b8',maxTicksLimit:10}},y:{grid:{color:'rgba(255,255,255,0.05)'},ticks:{color:'#94a3b8'}}}}
-});
-const actives=repartitionData.filter(r=>r.total>0);
-if(actives.length){
-  new Chart(document.getElementById('chartRepartition'),{
-    type:'doughnut',
-    data:{labels:actives.map(r=>r.icone+' '+r.categorie),datasets:[{data:actives.map(r=>r.total),backgroundColor:actives.map(r=>r.couleur),borderColor:'#0f172a',borderWidth:3,hoverOffset:10}]},
-    options:{responsive:true,maintainAspectRatio:false,cutout:'65%',plugins:{legend:{position:'bottom',labels:{color:'#cbd5e1',padding:12,font:{size:12}}}}}
-  });
+// --- Graphiques existants ---
+const evolutionData = {{ evolution | tojson }};
+const repartitionData = {{ totaux | tojson }};
+// ... (garde ton code Chart.js existant ici) ...
+
+// --- Fonctionnalité IA ---
+async function envoyerMessage() {
+    const input = document.getElementById('user-input');
+    const chat = document.getElementById('chat-messages');
+    const message = input.value.trim();
+    if (!message) return;
+
+    chat.innerHTML += `<p style="text-align: right; color: #f59e0b; margin: 5px 0;"><b>Moi:</b> ${message}</p>`;
+    input.value = '';
+
+    try {
+        const response = await fetch('/api/chat-ia', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ messages: [{ role: 'user', content: message }] })
+        });
+        const data = await response.json();
+        
+        if (data.response) {
+            chat.innerHTML += `<p style="color: #cbd5e1; margin: 5px 0;"><b>Mondjai:</b> ${data.response}</p>`;
+        } else {
+            chat.innerHTML += `<p style="color: #ef4444; margin: 5px 0;">Erreur: ${data.error || 'Une erreur est survenue'}</p>`;
+        }
+    } catch (e) {
+        chat.innerHTML += `<p style="color: #ef4444; margin: 5px 0;">Erreur de connexion au serveur.</p>`;
+    }
+    chat.scrollTop = chat.scrollHeight;
 }
 </script>
 {% endblock %}
