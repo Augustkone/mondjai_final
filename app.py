@@ -21,7 +21,12 @@ from email.mime.multipart import MIMEMultipart
 
 app = Flask(__name__)
 app.secret_key = os.environ.get('SECRET_KEY', 'mondjai_secret_2026')
-
+@app.template_filter('format_fcfa')
+def format_fcfa(value):
+    try:
+        return f"{int(float(value)):,}".replace(',', ' ')
+    except (ValueError, TypeError):
+        return str(value)
 # ============================================================
 #  BASE DE DONNEES
 # ============================================================
