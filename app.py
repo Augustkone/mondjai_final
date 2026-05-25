@@ -76,9 +76,16 @@ except ImportError:
     SMTP_PORT          = 587
 
 # CONFIGURATION GEMINI API
-GEMINI_API_KEY = os.environ.get('GEMINI_API_KEY', '')
+GEMINI_API_KEY = os.environ.get('GEMINI_API_KEY')
+
+# On ajoute cette vérification stricte :
+if not GEMINI_API_KEY:
+    raise ValueError("⚠️ ERREUR FATALE : La clé GEMINI_API_KEY est introuvable dans l'environnement Vercel.")
+
 genai.configure(api_key=GEMINI_API_KEY)
-model = genai.GenerativeModel('gemini-1.0-pro')
+
+# Tu peux remettre le modèle récent maintenant
+model = genai.GenerativeModel('gemini-1.5-flash')
 def generer_code():
     return ''.join(random.choices(string.digits, k=6))
 
