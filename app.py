@@ -580,34 +580,61 @@ def chat_ia():
     return render_template('chat_ia.html')
 
 
+# ============================================================
+#  AGENT IA — Conseiller financier (VERSION COMPLÈTE)
+# ============================================================
+@app.route('/chat-ia')
+@login_requis
+def chat_ia():
+    return render_template('chat_ia.html')
+
 @app.route('/api/chat-ia', methods=['POST'])
 @login_requis
 def api_chat_ia():
     if not GEMINI_API_KEY:
-        return jsonify({'error': 'Cle API Gemini non configuree.'}), 503
+        return jsonify({'error': 'Clé API Gemini non configurée.'}), 503
 
     data = request.get_json(silent=True) or {}
     messages = data.get('messages', [])
     if not messages:
         return jsonify({'error': 'Aucun message.'}), 400
 
-    # ... (Garde ton code actuel qui récupère le contexte stats_ia, top_cats, etc.) ...
-    # ... (Garde ton bloc qui définit 'system_prompt') ...
+    user_id = session['utilisateur_id']
+    conn, cur = get_db()
+    
+    # 1. Récupérer les données pour le contexte (les 10 dernières dépenses)
+    cur.execute("""
+        SELECT d.montant, d.description, c.nom as categorie, d.date_depense
+        FROM depenses d 
+        JOIN categories c ON d.categorie_id = c.id
+        WHERE d.utilisateur_id = %s
+        ORDER BY d.date_depense DESC LIMIT 10
+    """, (user_id,))
+    historique_str = str(cur.fetchall())
+    conn.close()
+
+    # 2. Définir le prompt système (le rôle de l'IA)
+    system_prompt = f"""
+    Tu es Mondjai IA, un conseiller financier personnel expert et bienveillant.
+    Ton rôle est d'aider l'utilisateur à gérer son budget.
+    Voici ses dernières dépenses : {historique_str}.
+    Utilise ces données pour donner des conseils personnalisés.
+    Sois concis, utilise des emojis, et si possible, parle en FCFA.
+    """
 
     try:
-        # Création de l'historique au format attendu par Gemini
-        chat = model.start_chat(history=[])
+        # Construction de l'historique Gemini
+        model_chat = model.start_chat(history=[])
         
-        # On injecte le system_prompt comme première instruction
-        full_prompt = system_prompt + "\n\nHistorique de la discussion : " + str(messages)
+        # On extrait le dernier message de l'utilisateur
+        user_message = messages[-1]['content']
         
-        response = model.generate_content(full_prompt)
+        # Envoi de la requête
+        response = model_chat.send_message(system_prompt + "\n\nQuestion de l'utilisateur : " + user_message)
+        
         return jsonify({'response': response.text})
     except Exception as e:
         return jsonify({'error': str(e)}), 500
-
-# ============================================================
-#  AJOUTER
 # ============================================================
 @app.route('/ajouter', methods=['GET', 'POST'])
 @login_requis
