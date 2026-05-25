@@ -1,5 +1,6 @@
 {% extends "base.html" %}
 {% block title %}Tableau de bord - Mondjai{% endblock %}
+
 {% block content %}
 <div class="page-header">
   <div>
@@ -14,7 +15,7 @@
     <div class="kpi-label">Total du mois</div>
     <div class="kpi-value">{{ "{:,.0f}".format(stats.total_mois) }} <span class="kpi-currency">FCFA</span></div>
   </div>
-  </div>
+</div>
 
 <div class="charts-grid">
   <div class="chart-card chart-card--wide">
@@ -34,17 +35,17 @@
   </div>
   <div style="display: flex; gap: 10px;">
     <input type="text" id="user-input" placeholder="Ex: Comment puis-je réduire mes dépenses ?" style="flex-grow: 1; padding: 10px; border-radius: 6px; border: 1px solid #334155; background: #1e293b; color: white;">
-    <button onclick="envoyerMessage()" style="padding: 10px 20px; background: #f59e0b; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; color: #0f172a;">Envoyer</button>
+    <button id="btn-envoyer" onclick="envoyerMessage()" style="padding: 10px 20px; background: #f59e0b; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; color: #0f172a;">Envoyer</button>
   </div>
 </div>
 
 <div class="bottom-grid">
   <div class="card">
     <h2 class="card-title">Categories du mois</h2>
-    </div>
+  </div>
   <div class="card">
     <h2 class="card-title">Dernieres depenses</h2>
-    </div>
+  </div>
 </div>
 {% endblock %}
 
@@ -53,17 +54,35 @@
 // --- Graphiques existants ---
 const evolutionData = {{ evolution | tojson }};
 const repartitionData = {{ totaux | tojson }};
-// ... (garde ton code Chart.js existant ici) ...
+// ... (Placez ici la configuration de vos graphiques Chart.js) ...
 
 // --- Fonctionnalité IA ---
+const input = document.getElementById('user-input');
+const chat = document.getElementById('chat-messages');
+const btnEnvoyer = document.getElementById('btn-envoyer');
+
+// Permettre l'envoi avec la touche Entrée
+input.addEventListener("keypress", function(event) {
+    if (event.key === "Enter") {
+        event.preventDefault();
+        envoyerMessage();
+    }
+});
+
 async function envoyerMessage() {
-    const input = document.getElementById('user-input');
-    const chat = document.getElementById('chat-messages');
     const message = input.value.trim();
     if (!message) return;
 
+    // Afficher le message de l'utilisateur
     chat.innerHTML += `<p style="text-align: right; color: #f59e0b; margin: 5px 0;"><b>Moi:</b> ${message}</p>`;
     input.value = '';
+    
+    // État de chargement
+    input.disabled = true;
+    btnEnvoyer.disabled = true;
+    const loadingId = 'loading-' + Date.now();
+    chat.innerHTML += `<p id="${loadingId}" style="color: #64748b; font-style: italic; margin: 5px 0;">Mondjai réfléchit...</p>`;
+    chat.scrollTop = chat.scrollHeight;
 
     try {
         const response = await fetch('/api/chat-ia', {
@@ -73,15 +92,27 @@ async function envoyerMessage() {
         });
         const data = await response.json();
         
+        // Retirer l'indicateur de chargement
+        const loadingElement = document.getElementById(loadingId);
+        if (loadingElement) loadingElement.remove();
+        
+        // Afficher la réponse
         if (data.response) {
             chat.innerHTML += `<p style="color: #cbd5e1; margin: 5px 0;"><b>Mondjai:</b> ${data.response}</p>`;
         } else {
             chat.innerHTML += `<p style="color: #ef4444; margin: 5px 0;">Erreur: ${data.error || 'Une erreur est survenue'}</p>`;
         }
     } catch (e) {
+        const loadingElement = document.getElementById(loadingId);
+        if (loadingElement) loadingElement.remove();
         chat.innerHTML += `<p style="color: #ef4444; margin: 5px 0;">Erreur de connexion au serveur.</p>`;
+    } finally {
+        // Réactiver les champs
+        input.disabled = false;
+        btnEnvoyer.disabled = false;
+        input.focus();
+        chat.scrollTop = chat.scrollHeight;
     }
-    chat.scrollTop = chat.scrollHeight;
 }
 </script>
 {% endblock %}
