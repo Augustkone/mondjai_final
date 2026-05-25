@@ -66,7 +66,7 @@ def login_requis(f):
     return decorated
 
 # ============================================================
-#  EMAIL
+#  EMAIL & SERVICES EXTÉRIEURS
 # ============================================================
 try:
     from email_config import EMAIL_EXPEDITEUR, EMAIL_MOT_DE_PASSE, SMTP_HOST, SMTP_PORT
@@ -76,7 +76,7 @@ except ImportError:
     SMTP_HOST          = 'smtp.gmail.com'
     SMTP_PORT          = 587
 
-# GEMINI API
+# CONFIGURATION GEMINI API (CORRECTION ERREUR 404)
 GEMINI_API_KEY = os.environ.get('GEMINI_API_KEY', '')
 genai.configure(api_key=GEMINI_API_KEY)
 model = genai.GenerativeModel('gemini-1.5-flash')
@@ -110,7 +110,6 @@ def envoyer_email_reset(destinataire, nom, code):
         s.sendmail(EMAIL_EXPEDITEUR, destinataire, msg.as_string())
 
 def envoyer_email_alerte_budget(destinataire, nom, pourcentage, total, budget, mois_nom):
-    """Envoie une alerte email quand le budget est presque atteint."""
     msg            = MIMEMultipart('alternative')
     msg['Subject'] = f"[Mondjai] ⚠️ Alerte budget — {pourcentage:.0f}% utilise"
     msg['From']    = EMAIL_EXPEDITEUR
@@ -145,7 +144,6 @@ def envoyer_email_alerte_budget(destinataire, nom, pourcentage, total, budget, m
 #  HELPER : recuperer le budget du mois courant
 # ============================================================
 def get_budget_mois(cur, user_id, mois=None):
-    """Retourne le budget du mois (None si non defini)."""
     if mois is None:
         mois = date.today().strftime('%Y-%m')
     cur.execute("""
@@ -172,8 +170,8 @@ def register():
     if 'utilisateur_id' in session:
         return redirect(url_for('index'))
     if request.method == 'POST':
-        nom   = request.form.get('nom',            '').strip()
-        email = request.form.get('email',          '').strip().lower()
+        nom   = request.form.get('nom',             '').strip()
+        email = request.form.get('email',           '').strip().lower()
         mdp   = request.form.get('mot_de_passe',   '')
         mdp2  = request.form.get('mot_de_passe2', '')
         erreurs = []
@@ -309,7 +307,7 @@ def mot_de_passe_oublie():
     return redirect(url_for('mot_de_passe_oublie'))
 
 # ============================================================
-#  TABLEAU DE BORD
+#  TABLEAU DE BORD (GRAPH REPRÉPARATION ACCESSIBLE FRONTIÈRE)
 # ============================================================
 @app.route('/')
 @login_requis
@@ -345,7 +343,7 @@ def index():
         SELECT date_depense::text AS jour, SUM(montant) AS total
         FROM depenses WHERE utilisateur_id=%s
           AND date_depense >= CURRENT_DATE - INTERVAL '29 days'
-        GROUP BY date_depense ORDER BY date_depense
+        GROUP BY date_depense ORDER BY date_depense ASC
     """, (user_id,))
     evolution_raw = cur.fetchall()
 
@@ -384,6 +382,13 @@ def index():
     total_actuel = stats['total_mois']
     variation    = round(((total_actuel-total_prec)/total_prec)*100,1) if total_prec>0 else 0
 
+    # Formatage précis des listes natives pour initialiser Chart.js
+    dates_graph = [row['jour'] for row in evolution]
+    montants_graph = [float(row['total']) for row in evolution]
+    
+    cats_graph = [row['categorie'] for row in totaux if row['total'] > 0]
+    cats_montants = [float(row['total']) for row in totaux if row['total'] > 0]
+
     # --- Calcul alertes budget ---
     alerte_budget = None
     pourcentage_budget = 0
@@ -403,7 +408,11 @@ def index():
         budget_info=budget_info,
         pourcentage_budget=round(pourcentage_budget, 1),
         alerte_budget=alerte_budget,
-        mois_courant=mois_courant)
+        mois_courant=mois_courant,
+        dates_graph=dates_graph,
+        montants_graph=montants_graph,
+        cats_graph=cats_graph,
+        cats_montants=cats_montants)
 
 # ============================================================
 #  BUDGET & OBJECTIFS
@@ -518,7 +527,6 @@ def budget():
 @app.route('/api/budget-status')
 @login_requis
 def api_budget_status():
-    """API JSON : statut budget du mois courant (pour polling front-end)."""
     user_id      = session['utilisateur_id']
     mois_courant = date.today().strftime('%Y-%m')
     conn, cur    = get_db()
@@ -539,7 +547,6 @@ def api_budget_status():
     restant     = max(0, budget - total)
     alerte      = pourcentage >= budget_info['seuil_alerte']
 
-    # Envoi email alerte si seuil franchi et pas encore envoye
     if alerte and not budget_info['alerte_envoyee'] and EMAIL_EXPEDITEUR:
         try:
             cur.execute("SELECT nom, email FROM utilisateurs WHERE id=%s", (user_id,))
@@ -572,7 +579,7 @@ def api_budget_status():
     })
 
 # ============================================================
-#  AGENT IA — Conseiller financier (VERSION CORRIGÉE)
+#  AGENT IA — Conseiller financier
 # ============================================================
 @app.route('/chat-ia')
 @login_requis
@@ -593,7 +600,6 @@ def api_chat_ia():
     user_id = session['utilisateur_id']
     conn, cur = get_db()
     
-    # Récupérer les 10 dernières dépenses pour enrichir le contexte de l'IA
     cur.execute("""
         SELECT d.montant, d.description, c.nom as categorie, d.date_depense
         FROM depenses d 
@@ -604,7 +610,6 @@ def api_chat_ia():
     historique_str = str(cur.fetchall())
     conn.close()
 
-    # Invite contextuelle propre transmise à l'instruction
     user_message = messages[-1]['content']
     prompt_complet = f"""
     Tu es Mondjai IA, un conseiller financier personnel expert et bienveillant.
@@ -618,7 +623,6 @@ def api_chat_ia():
     """
 
     try:
-        # Correction 404 : Appel direct propre sans start_chat complexe incompatible
         response = model.generate_content(prompt_complet)
         return jsonify({'response': response.text})
     except Exception as e:
@@ -655,7 +659,6 @@ def ajouter():
             conn.commit()
             flash(f"Depense de {montant:,.0f} FCFA ajoutee !", 'success')
 
-            # Verifier si le budget est atteint apres l'ajout
             user_id      = session['utilisateur_id']
             mois_courant = date.today().strftime('%Y-%m')
             budget_info  = get_budget_mois(cur, user_id, mois_courant)
@@ -747,7 +750,6 @@ def modifier(dep_id):
     user_id = session['utilisateur_id']
     conn, cur = get_db()
     
-    # On vérifie d'abord si la dépense appartient bien à l'utilisateur
     cur.execute("""
         SELECT id, montant, description, categorie_id, date_depense::text 
         FROM depenses 
@@ -759,43 +761,31 @@ def modifier(dep_id):
         conn.close()
         flash("Depense introuvable ou non autorisee.", 'error')
         return redirect(url_for('historique'))
-
-    if request.method == 'POST':
-        montant      = request.form.get('montant', '').replace(',', '.')
-        description  = request.form.get('description', '').strip()
-        categorie_id = request.form.get('categorie_id')
-        date_str     = request.form.get('date_depense', str(date.today()))
         
-        erreurs = []
+    cur.execute("SELECT id, nom, icone FROM categories ORDER BY nom")
+    categories = cur.fetchall()
+    
+    if request.method == 'POST':
+        montant = request.form.get('montant', '').replace(',', '.')
+        description = request.form.get('description', '').strip()
+        categorie_id = request.form.get('categorie_id')
+        date_str = request.form.get('date_depense', str(date.today()))
+        
         try:
             montant = float(montant)
-            if montant <= 0: 
-                erreurs.append("Le montant doit etre positif.")
-        except ValueError:
-            erreurs.append("Montant invalide.")
-            
-        if not categorie_id: 
-            erreurs.append("Veuillez choisir une categorie.")
-            
-        if erreurs:
-            for e in erreurs: 
-                flash(e, 'error')
-        else:
             cur.execute("""
                 UPDATE depenses 
                 SET montant=%s, description=%s, categorie_id=%s, date_depense=%s
                 WHERE id=%s AND utilisateur_id=%s
             """, (montant, description or None, categorie_id, date_str, dep_id, user_id))
             conn.commit()
-            flash("Depense modifiee avec succes !", 'success')
+            flash("Depense modifiee avec succes !", "success")
             conn.close()
             return redirect(url_for('historique'))
-
-    # Pour le GET : charger les catégories pour le menu déroulant du formulaire
-    cur.execute("SELECT id, nom, icone FROM categories ORDER BY nom")
-    categories = cur.fetchall()
+        except ValueError:
+            flash("Montant invalide.", "error")
+            
     conn.close()
-    
     return render_template('modifier.html', depense=depense, categories=categories)
 
 if __name__ == '__main__':
