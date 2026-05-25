@@ -1,57 +1,70 @@
 {% extends "base.html" %}
 {% block title %}Budget & Objectifs — Mondjai{% endblock %}
-{% block content %}
 
+{% block content %}
 <div class="page-header">
-  <h1>💰 Budget & Objectifs</h1>
-  <p class="subtitle">Definissez votre budget mensuel et vos objectifs financiers</p>
+  <div>
+    <h1 class="page-title">Budget & Objectifs</h1>
+    <p class="page-subtitle">{{ mois_nom }} {{ annee }}</p>
+  </div>
+  <a href="{{ url_for('index') }}" class="btn btn--primary">← Retour</a>
 </div>
 
-<!-- ── Jauge budget mois courant ── -->
+<!-- JAUGE BUDGET MOIS COURANT -->
 {% if budget_actuel and budget_actuel.montant_budget > 0 %}
-<div class="card budget-gauge-card {% if pourcentage_actuel >= 100 %}critique{% elif pourcentage_actuel >= budget_actuel.seuil_alerte %}alerte{% endif %}">
-  <div class="card-header">
-    <h2>📊 {{ mois_nom }} {{ annee }}</h2>
-    <span class="badge {% if pourcentage_actuel >= 100 %}badge-danger{% elif pourcentage_actuel >= budget_actuel.seuil_alerte %}badge-warning{% else %}badge-success{% endif %}">
-      {{ pourcentage_actuel }}% utilise
+<div style="background:#1e293b;border-radius:14px;padding:1.5rem;margin-bottom:1.5rem;
+            border-left:4px solid {% if pourcentage_actuel >= 100 %}#ef4444{% elif pourcentage_actuel >= budget_actuel.seuil_alerte %}#f59e0b{% else %}#10b981{% endif %};">
+
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem;flex-wrap:wrap;gap:.5rem;">
+    <h2 style="margin:0;font-size:1.1rem;color:#e2e8f0;">📊 {{ mois_nom }} {{ annee }}</h2>
+    <span style="padding:.3rem .9rem;border-radius:999px;font-size:.85rem;font-weight:700;
+                 background:{% if pourcentage_actuel >= 100 %}#ef4444{% elif pourcentage_actuel >= budget_actuel.seuil_alerte %}#f59e0b{% else %}#10b981{% endif %};
+                 color:{% if pourcentage_actuel >= 100 or pourcentage_actuel < budget_actuel.seuil_alerte %}#fff{% else %}#1e293b{% endif %};">
+      {{ pourcentage_actuel }}% utilisé
     </span>
   </div>
 
-  <div class="gauge-bar-wrap">
-    <div class="gauge-bar">
-      <div class="gauge-fill {% if pourcentage_actuel >= 100 %}fill-danger{% elif pourcentage_actuel >= budget_actuel.seuil_alerte %}fill-warning{% else %}fill-ok{% endif %}"
-           style="width: {{ [pourcentage_actuel, 100] | min }}%"></div>
-      <div class="gauge-seuil" style="left: {{ budget_actuel.seuil_alerte }}%"
-           title="Seuil d'alerte {{ budget_actuel.seuil_alerte }}%"></div>
-    </div>
-    <div class="gauge-labels">
-      <span>0</span>
-      <span>{{ budget_actuel.montant_budget | int | format_fcfa }}</span>
-    </div>
+  <div style="position:relative;height:18px;background:#0f172a;border-radius:9px;overflow:hidden;margin-bottom:.4rem;">
+    <div style="height:100%;border-radius:9px;transition:width .5s;
+                width:{{ [pourcentage_actuel,100]|min }}%;
+                background:{% if pourcentage_actuel >= 100 %}linear-gradient(90deg,#ef4444,#f87171)
+                           {% elif pourcentage_actuel >= budget_actuel.seuil_alerte %}linear-gradient(90deg,#f59e0b,#fbbf24)
+                           {% else %}linear-gradient(90deg,#10b981,#34d399){% endif %};"></div>
+  </div>
+  <div style="display:flex;justify-content:space-between;font-size:.75rem;color:#64748b;margin-bottom:1rem;">
+    <span>0 FCFA</span>
+    <span>{{ "{:,.0f}".format(budget_actuel.montant_budget).replace(","," ") }} FCFA</span>
   </div>
 
-  <div class="budget-stat-row">
-    <div class="bstat">
-      <span class="bstat-label">Depense</span>
-      <span class="bstat-val {% if pourcentage_actuel >= 100 %}text-danger{% endif %}">{{ total_actuel | int | format_fcfa }}</span>
+  <div style="display:flex;gap:2rem;flex-wrap:wrap;">
+    <div>
+      <div style="font-size:.75rem;color:#64748b;">Dépensé</div>
+      <div style="font-size:1.2rem;font-weight:700;color:{% if pourcentage_actuel >= 100 %}#ef4444{% else %}#e2e8f0{% endif %};">
+        {{ "{:,.0f}".format(total_actuel).replace(","," ") }} FCFA
+      </div>
     </div>
-    <div class="bstat">
-      <span class="bstat-label">Budget</span>
-      <span class="bstat-val">{{ budget_actuel.montant_budget | int | format_fcfa }}</span>
+    <div>
+      <div style="font-size:.75rem;color:#64748b;">Budget</div>
+      <div style="font-size:1.2rem;font-weight:700;color:#e2e8f0;">
+        {{ "{:,.0f}".format(budget_actuel.montant_budget).replace(","," ") }} FCFA
+      </div>
     </div>
-    <div class="bstat">
-      <span class="bstat-label">Restant</span>
-      <span class="bstat-val text-success">{{ ([budget_actuel.montant_budget - total_actuel, 0] | max) | int | format_fcfa }}</span>
+    <div>
+      <div style="font-size:.75rem;color:#64748b;">Restant</div>
+      <div style="font-size:1.2rem;font-weight:700;color:#10b981;">
+        {{ "{:,.0f}".format([budget_actuel.montant_budget - total_actuel, 0]|max).replace(","," ") }} FCFA
+      </div>
     </div>
   </div>
 
   {% if budget_actuel.objectif %}
-  <div class="objectif-box">
-    <span class="objectif-icon">🎯</span>
-    <div>
+  <div style="display:flex;align-items:flex-start;gap:.75rem;margin-top:1rem;
+              background:#0f172a;padding:.75rem 1rem;border-radius:8px;border-left:3px solid #f59e0b;">
+    <span style="font-size:1.2rem;">🎯</span>
+    <div style="color:#e2e8f0;">
       <strong>Objectif :</strong> {{ budget_actuel.objectif }}
       {% if budget_actuel.objectif_montant > 0 %}
-        — <span class="text-gold">{{ budget_actuel.objectif_montant | int | format_fcfa }}</span>
+        — <span style="color:#f59e0b;font-weight:700;">{{ "{:,.0f}".format(budget_actuel.objectif_montant).replace(","," ") }} FCFA</span>
       {% endif %}
     </div>
   </div>
@@ -59,83 +72,105 @@
 </div>
 {% endif %}
 
-<!-- ── Formulaire ── -->
-<div class="card">
-  <h2>✏️ Definir / modifier le budget</h2>
+<!-- FORMULAIRE -->
+<div style="background:#1e293b;border-radius:14px;padding:1.5rem;margin-bottom:1.5rem;">
+  <h2 style="margin:0 0 1.25rem;font-size:1.1rem;color:#e2e8f0;">✏️ Définir / modifier le budget</h2>
+
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+      {% for cat, msg in messages %}
+      <div style="padding:.7rem 1rem;border-radius:8px;margin-bottom:.75rem;
+                  background:{% if cat=='success' %}#052e16{% else %}#450a0a{% endif %};
+                  border-left:3px solid {% if cat=='success' %}#10b981{% else %}#ef4444{% endif %};
+                  color:#e2e8f0;font-size:.9rem;">{{ msg }}</div>
+      {% endfor %}
+    {% endif %}
+  {% endwith %}
+
   <form method="POST" action="{{ url_for('budget') }}">
-    <div class="form-grid">
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;">
 
-      <div class="form-group">
-        <label for="mois">Mois concerné</label>
-        <input type="month" id="mois" name="mois"
-               value="{{ mois_courant }}" required>
+      <div style="display:flex;flex-direction:column;gap:.4rem;">
+        <label style="font-size:.85rem;color:#94a3b8;">Mois concerné</label>
+        <input type="month" name="mois" value="{{ mois_courant }}" required
+               style="background:#0f172a;border:1px solid #334155;color:#e2e8f0;border-radius:8px;padding:.6rem .9rem;font-size:1rem;">
       </div>
 
-      <div class="form-group">
-        <label for="montant_budget">Budget mensuel (FCFA)</label>
-        <input type="number" id="montant_budget" name="montant_budget"
-               min="0" step="500"
-               value="{{ budget_actuel.montant_budget | int if budget_actuel else '' }}"
-               placeholder="Ex : 150000" required>
+      <div style="display:flex;flex-direction:column;gap:.4rem;">
+        <label style="font-size:.85rem;color:#94a3b8;">Budget mensuel (FCFA)</label>
+        <input type="number" name="montant_budget" min="0" step="500" required
+               value="{{ budget_actuel.montant_budget|int if budget_actuel else '' }}"
+               placeholder="Ex : 150000"
+               style="background:#0f172a;border:1px solid #334155;color:#e2e8f0;border-radius:8px;padding:.6rem .9rem;font-size:1rem;">
       </div>
 
-      <div class="form-group full-width">
-        <label for="objectif">Objectif du mois (optionnel)</label>
-        <input type="text" id="objectif" name="objectif"
-               value="{{ budget_actuel.objectif if budget_actuel else '' }}"
-               placeholder="Ex : Economiser pour les vacances, rembourser un pret...">
+      <div style="display:flex;flex-direction:column;gap:.4rem;grid-column:1/-1;">
+        <label style="font-size:.85rem;color:#94a3b8;">Objectif du mois (optionnel)</label>
+        <input type="text" name="objectif"
+               value="{{ budget_actuel.objectif if budget_actuel and budget_actuel.objectif else '' }}"
+               placeholder="Ex : Économiser pour les vacances..."
+               style="background:#0f172a;border:1px solid #334155;color:#e2e8f0;border-radius:8px;padding:.6rem .9rem;font-size:1rem;">
       </div>
 
-      <div class="form-group">
-        <label for="objectif_montant">Montant objectif (FCFA)</label>
-        <input type="number" id="objectif_montant" name="objectif_montant"
-               min="0" step="500"
-               value="{{ budget_actuel.objectif_montant | int if budget_actuel else '' }}"
-               placeholder="Ex : 50000">
+      <div style="display:flex;flex-direction:column;gap:.4rem;">
+        <label style="font-size:.85rem;color:#94a3b8;">Montant objectif (FCFA)</label>
+        <input type="number" name="objectif_montant" min="0" step="500"
+               value="{{ budget_actuel.objectif_montant|int if budget_actuel else '' }}"
+               placeholder="Ex : 50000"
+               style="background:#0f172a;border:1px solid #334155;color:#e2e8f0;border-radius:8px;padding:.6rem .9rem;font-size:1rem;">
       </div>
 
-      <div class="form-group">
-        <label for="seuil_alerte">
+      <div style="display:flex;flex-direction:column;gap:.4rem;">
+        <label style="font-size:.85rem;color:#94a3b8;">
           Seuil d'alerte :
-          <strong id="seuil_val">{{ budget_actuel.seuil_alerte if budget_actuel else 80 }}%</strong>
+          <strong id="seuil_val" style="color:#f59e0b;">{{ budget_actuel.seuil_alerte if budget_actuel else 80 }}%</strong>
         </label>
-        <input type="range" id="seuil_alerte" name="seuil_alerte"
-               min="10" max="100" step="5"
+        <input type="range" name="seuil_alerte" min="10" max="100" step="5"
                value="{{ budget_actuel.seuil_alerte if budget_actuel else 80 }}"
-               oninput="document.getElementById('seuil_val').textContent=this.value+'%'">
-        <div class="seuil-hint">Vous serez alerté (email + notification) quand ce % est atteint</div>
+               oninput="document.getElementById('seuil_val').textContent=this.value+'%'"
+               style="accent-color:#f59e0b;">
+        <div style="font-size:.75rem;color:#64748b;">Email + bannière déclenchés à ce pourcentage</div>
       </div>
 
     </div>
 
-    <div class="form-actions">
-      <button type="submit" class="btn-primary">
+    <div style="display:flex;gap:1rem;margin-top:1.5rem;flex-wrap:wrap;">
+      <button type="submit"
+              style="background:#f59e0b;color:#1e293b;font-weight:700;padding:.7rem 1.5rem;
+                     border-radius:8px;border:none;cursor:pointer;font-size:1rem;">
         💾 Enregistrer le budget
       </button>
-      <a href="{{ url_for('index') }}" class="btn-secondary">Annuler</a>
+      <a href="{{ url_for('index') }}"
+         style="background:#0f172a;color:#e2e8f0;font-weight:600;padding:.7rem 1.5rem;
+                border-radius:8px;border:1px solid #334155;text-decoration:none;font-size:1rem;">
+        Annuler
+      </a>
     </div>
   </form>
 </div>
 
-<!-- ── Historique des budgets ── -->
+<!-- HISTORIQUE -->
 {% if historique_budgets %}
-<div class="card">
-  <h2>📅 Historique des budgets</h2>
-  <div class="histo-grid">
+<div style="background:#1e293b;border-radius:14px;padding:1.5rem;">
+  <h2 style="margin:0 0 1.25rem;font-size:1.1rem;color:#e2e8f0;">📅 Historique des budgets</h2>
+  <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:1rem;">
     {% for b in historique_budgets %}
-    <div class="histo-card {% if b.pourcentage >= 100 %}histo-danger{% elif b.pourcentage >= b.seuil_alerte %}histo-warn{% else %}histo-ok{% endif %}">
-      <div class="histo-mois">{{ b.mois }}</div>
-      <div class="histo-bar">
-        <div class="histo-fill" style="width:{{ [b.pourcentage,100]|min }}%"></div>
+    <div style="background:#0f172a;border-radius:10px;padding:1rem;
+                border-left:3px solid {% if b.pourcentage >= 100 %}#ef4444{% elif b.pourcentage >= b.seuil_alerte %}#f59e0b{% else %}#10b981{% endif %};">
+      <div style="font-weight:700;font-size:.9rem;color:#94a3b8;margin-bottom:.5rem;">{{ b.mois }}</div>
+      <div style="height:8px;background:#1e293b;border-radius:4px;overflow:hidden;margin:.4rem 0;">
+        <div style="height:100%;border-radius:4px;width:{{ [b.pourcentage,100]|min }}%;
+                    background:{% if b.pourcentage >= 100 %}#ef4444{% elif b.pourcentage >= b.seuil_alerte %}#f59e0b{% else %}#10b981{% endif %};"></div>
       </div>
-      <div class="histo-nums">
-        <span>{{ b.total_depense | int | format_fcfa }}</span>
-        <span class="histo-sep">/</span>
-        <span>{{ b.montant_budget | int | format_fcfa }}</span>
-        <span class="histo-pct">{{ b.pourcentage }}%</span>
+      <div style="font-size:.82rem;color:#94a3b8;">
+        {{ "{:,.0f}".format(b.total_depense).replace(","," ") }} /
+        {{ "{:,.0f}".format(b.montant_budget).replace(","," ") }} FCFA
+        <strong style="color:{% if b.pourcentage >= 100 %}#ef4444{% else %}#64748b{% endif %};">
+          {{ b.pourcentage }}%
+        </strong>
       </div>
       {% if b.objectif %}
-      <div class="histo-obj">🎯 {{ b.objectif }}</div>
+      <div style="font-size:.75rem;color:#f59e0b;margin-top:.4rem;">🎯 {{ b.objectif }}</div>
       {% endif %}
     </div>
     {% endfor %}
@@ -143,64 +178,4 @@
 </div>
 {% endif %}
 
-<style>
-.budget-gauge-card { border-left: 4px solid #10b981; }
-.budget-gauge-card.alerte { border-left-color: #f59e0b; }
-.budget-gauge-card.critique { border-left-color: #ef4444; }
-.card-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:1rem; }
-.badge { padding:.3rem .8rem; border-radius:999px; font-size:.85rem; font-weight:600; }
-.badge-success { background:#10b981; color:#fff; }
-.badge-warning { background:#f59e0b; color:#1e293b; }
-.badge-danger  { background:#ef4444; color:#fff; }
-.gauge-bar-wrap { margin:1rem 0; }
-.gauge-bar { position:relative; height:18px; background:#1e293b; border-radius:9px; overflow:visible; }
-.gauge-fill { height:100%; border-radius:9px; transition:width .5s; }
-.fill-ok     { background:linear-gradient(90deg,#10b981,#34d399); }
-.fill-warning{ background:linear-gradient(90deg,#f59e0b,#fbbf24); }
-.fill-danger { background:linear-gradient(90deg,#ef4444,#f87171); }
-.gauge-seuil { position:absolute; top:-4px; bottom:-4px; width:3px; background:#fff; border-radius:2px; opacity:.6; }
-.gauge-labels{ display:flex; justify-content:space-between; font-size:.75rem; color:#64748b; margin-top:.3rem; }
-.budget-stat-row { display:flex; gap:2rem; flex-wrap:wrap; margin-top:1rem; }
-.bstat { display:flex; flex-direction:column; }
-.bstat-label { font-size:.75rem; color:#64748b; }
-.bstat-val   { font-size:1.2rem; font-weight:700; }
-.text-danger  { color:#ef4444; }
-.text-success { color:#10b981; }
-.text-gold    { color:#f59e0b; }
-.objectif-box { display:flex; align-items:flex-start; gap:.75rem; margin-top:1rem;
-                background:#1e293b; padding:.75rem 1rem; border-radius:8px; border-left:3px solid #f59e0b; }
-.objectif-icon { font-size:1.3rem; }
-.form-grid  { display:grid; grid-template-columns:1fr 1fr; gap:1rem; }
-.full-width { grid-column:1/-1; }
-.form-group { display:flex; flex-direction:column; gap:.4rem; }
-.form-group label { font-size:.875rem; color:#94a3b8; }
-.form-group input[type=text],
-.form-group input[type=number],
-.form-group input[type=month] {
-  background:#1e293b; border:1px solid #334155; color:#e2e8f0;
-  border-radius:8px; padding:.6rem .9rem; font-size:1rem;
-}
-.form-group input[type=range] { accent-color:#f59e0b; }
-.seuil-hint { font-size:.75rem; color:#64748b; margin-top:.2rem; }
-.form-actions { display:flex; gap:1rem; margin-top:1.5rem; flex-wrap:wrap; }
-.btn-primary  { background:#f59e0b; color:#1e293b; font-weight:700; padding:.7rem 1.5rem;
-                border-radius:8px; border:none; cursor:pointer; font-size:1rem; }
-.btn-primary:hover { background:#fbbf24; }
-.btn-secondary{ background:#1e293b; color:#e2e8f0; font-weight:600; padding:.7rem 1.5rem;
-                border-radius:8px; border:1px solid #334155; text-decoration:none; font-size:1rem; }
-.histo-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(200px,1fr)); gap:1rem; margin-top:1rem; }
-.histo-card { background:#1e293b; border-radius:10px; padding:1rem; border-left:3px solid #10b981; }
-.histo-card.histo-warn { border-left-color:#f59e0b; }
-.histo-card.histo-danger{ border-left-color:#ef4444; }
-.histo-mois { font-weight:700; font-size:.9rem; color:#94a3b8; margin-bottom:.5rem; }
-.histo-bar  { height:8px; background:#0f172a; border-radius:4px; overflow:hidden; margin:.4rem 0; }
-.histo-fill { height:100%; background:#10b981; border-radius:4px; }
-.histo-card.histo-warn  .histo-fill { background:#f59e0b; }
-.histo-card.histo-danger .histo-fill { background:#ef4444; }
-.histo-nums { display:flex; align-items:center; gap:.3rem; font-size:.85rem; flex-wrap:wrap; }
-.histo-sep  { color:#475569; }
-.histo-pct  { margin-left:auto; font-weight:700; color:#94a3b8; }
-.histo-obj  { font-size:.78rem; color:#64748b; margin-top:.4rem; }
-@media(max-width:600px){ .form-grid{ grid-template-columns:1fr; } }
-</style>
 {% endblock %}
