@@ -606,7 +606,7 @@ REGLES :
         # Tout se passe ICI dans la route, jamais au niveau module
         genai.configure(api_key=GEMINI_API_KEY)
         gemini_model = genai.GenerativeModel(
-            model_name="gemini-1.5-flash-latest",
+            model_name="gemini-1.5-flash",
             system_instruction=system_prompt
         )
         gemini_history = []
