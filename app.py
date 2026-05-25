@@ -78,7 +78,7 @@ except ImportError:
 # CONFIGURATION GEMINI API
 GEMINI_API_KEY = os.environ.get('GEMINI_API_KEY', '')
 genai.configure(api_key=GEMINI_API_KEY)
-model = genai.GenerativeModel('gemini-1.5-flash-latest')
+model = genai.GenerativeModel('gemini-1.0-pro')
 def generer_code():
     return ''.join(random.choices(string.digits, k=6))
 
