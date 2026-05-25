@@ -172,9 +172,9 @@ def register():
     if 'utilisateur_id' in session:
         return redirect(url_for('index'))
     if request.method == 'POST':
-        nom   = request.form.get('nom',           '').strip()
+        nom   = request.form.get('nom',            '').strip()
         email = request.form.get('email',          '').strip().lower()
-        mdp   = request.form.get('mot_de_passe',  '')
+        mdp   = request.form.get('mot_de_passe',   '')
         mdp2  = request.form.get('mot_de_passe2', '')
         erreurs = []
         if not nom:          erreurs.append("Le nom est requis.")
@@ -572,7 +572,7 @@ def api_budget_status():
     })
 
 # ============================================================
-#  AGENT IA — Conseiller financier (VERSION COMPLÈTE)
+#  AGENT IA — Conseiller financier (VERSION CORRIGÉE)
 # ============================================================
 @app.route('/chat-ia')
 @login_requis
@@ -593,7 +593,7 @@ def api_chat_ia():
     user_id = session['utilisateur_id']
     conn, cur = get_db()
     
-    # 1. Récupérer les données pour le contexte (les 10 dernières dépenses)
+    # Récupérer les 10 dernières dépenses pour enrichir le contexte de l'IA
     cur.execute("""
         SELECT d.montant, d.description, c.nom as categorie, d.date_depense
         FROM depenses d 
@@ -604,25 +604,22 @@ def api_chat_ia():
     historique_str = str(cur.fetchall())
     conn.close()
 
-    # 2. Définir le prompt système (le rôle de l'IA)
-    system_prompt = f"""
+    # Invite contextuelle propre transmise à l'instruction
+    user_message = messages[-1]['content']
+    prompt_complet = f"""
     Tu es Mondjai IA, un conseiller financier personnel expert et bienveillant.
     Ton rôle est d'aider l'utilisateur à gérer son budget.
-    Voici ses dernières dépenses : {historique_str}.
-    Utilise ces données pour donner des conseils personnalisés.
-    Sois concis, utilise des emojis, et si possible, parle en FCFA.
+    Voici ses dernières dépenses réelles enregistrées en BDD : {historique_str}.
+    Utilise intelligemment ces données pour lui donner des conseils précis s'il pose des questions sur ses dépenses.
+    
+    Règles strictes : Sois très concis, utilise des emojis, et exprime les montants en FCFA.
+    
+    Message de l'utilisateur : {user_message}
     """
 
     try:
-        # Construction de l'historique Gemini
-        model_chat = model.start_chat(history=[])
-        
-        # On extrait le dernier message de l'utilisateur
-        user_message = messages[-1]['content']
-        
-        # Envoi de la requête
-        response = model_chat.send_message(system_prompt + "\n\nQuestion de l'utilisateur : " + user_message)
-        
+        # Correction 404 : Appel direct propre sans start_chat complexe incompatible
+        response = model.generate_content(prompt_complet)
         return jsonify({'response': response.text})
     except Exception as e:
         return jsonify({'error': str(e)}), 500
@@ -750,6 +747,19 @@ def modifier(dep_id):
     user_id = session['utilisateur_id']
     conn, cur = get_db()
     
+    # On vérifie d'abord si la dépense appartient bien à l'utilisateur
+    cur.execute("""
+        SELECT id, montant, description, categorie_id, date_depense::text 
+        FROM depenses 
+        WHERE id=%s AND utilisateur_id=%s
+    """, (dep_id, user_id))
+    depense = cur.fetchone()
+    
+    if not depense:
+        conn.close()
+        flash("Depense introuvable ou non autorisee.", 'error')
+        return redirect(url_for('historique'))
+
     if request.method == 'POST':
         montant      = request.form.get('montant', '').replace(',', '.')
         description  = request.form.get('description', '').strip()
@@ -780,20 +790,8 @@ def modifier(dep_id):
             flash("Depense modifiee avec succes !", 'success')
             conn.close()
             return redirect(url_for('historique'))
-            
-    # GET: Charger la dépense existante pour remplir le formulaire
-    cur.execute("""
-        SELECT id, montant, description, date_depense::text, categorie_id 
-        FROM depenses 
-        WHERE id=%s AND utilisateur_id=%s
-    """, (dep_id, user_id))
-    depense = cur.fetchone()
-    
-    if not depense:
-        conn.close()
-        flash("Depense introuvable.", 'error')
-        return redirect(url_for('historique'))
-        
+
+    # Pour le GET : charger les catégories pour le menu déroulant du formulaire
     cur.execute("SELECT id, nom, icone FROM categories ORDER BY nom")
     categories = cur.fetchall()
     conn.close()
