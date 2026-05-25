@@ -1,5 +1,5 @@
 """
-MONDJAI — Carnet de Depenses Personnelles
+MONDJAI — Carnet de Dépenses Personnelles
 Flask + PostgreSQL + Auth + Reset mdp + Budget + Objectifs + Agent IA
 """
 
@@ -15,7 +15,6 @@ import random
 import string
 import os
 import json
-import urllib.request
 import google.generativeai as genai  
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
@@ -76,7 +75,7 @@ except ImportError:
     SMTP_HOST          = 'smtp.gmail.com'
     SMTP_PORT          = 587
 
-# CONFIGURATION GEMINI API (CORRECTION ERREUR 404)
+# CONFIGURATION GEMINI API
 GEMINI_API_KEY = os.environ.get('GEMINI_API_KEY', '')
 genai.configure(api_key=GEMINI_API_KEY)
 model = genai.GenerativeModel('gemini-1.5-flash')
@@ -101,7 +100,7 @@ def envoyer_email_reset(destinataire, nom, code):
                      border-radius:8px;border:2px solid #f59e0b;">{code}</span>
       </div>
       <p style="color:#94a3b8;">Expire dans <strong>10 minutes</strong>.</p>
-      <p style="color:#64748b;font-size:0.8rem;">Mondjai - ISE 2A 2026</p>
+      <p style="color:#64748b;font-size:0.8rem;">Mondjai - ENSEA 2026</p>
     </div>"""
     msg.attach(MIMEText(html, 'html', 'utf-8'))
     with smtplib.SMTP(SMTP_HOST, SMTP_PORT) as s:
@@ -132,7 +131,7 @@ def envoyer_email_alerte_budget(destinataire, nom, pourcentage, total, budget, m
         <div style="background:{couleur_barre};width:{min(pourcentage,100):.0f}%;height:100%;transition:width 0.3s;"></div>
       </div>
       <p>Pensez a ajuster vos depenses pour rester dans les limites de votre budget.</p>
-      <p style="color:#64748b;font-size:0.8rem;">Mondjai - ISE 2A 2026</p>
+      <p style="color:#64748b;font-size:0.8rem;">Mondjai - ENSEA 2026</p>
     </div>"""
     msg.attach(MIMEText(html, 'html', 'utf-8'))
     with smtplib.SMTP(SMTP_HOST, SMTP_PORT) as s:
@@ -140,9 +139,6 @@ def envoyer_email_alerte_budget(destinataire, nom, pourcentage, total, budget, m
         s.login(EMAIL_EXPEDITEUR, EMAIL_MOT_DE_PASSE)
         s.sendmail(EMAIL_EXPEDITEUR, destinataire, msg.as_string())
 
-# ============================================================
-#  HELPER : recuperer le budget du mois courant
-# ============================================================
 def get_budget_mois(cur, user_id, mois=None):
     if mois is None:
         mois = date.today().strftime('%Y-%m')
@@ -170,7 +166,7 @@ def register():
     if 'utilisateur_id' in session:
         return redirect(url_for('index'))
     if request.method == 'POST':
-        nom   = request.form.get('nom',             '').strip()
+        nom   = request.form.get('nom',              '').strip()
         email = request.form.get('email',           '').strip().lower()
         mdp   = request.form.get('mot_de_passe',   '')
         mdp2  = request.form.get('mot_de_passe2', '')
@@ -307,7 +303,7 @@ def mot_de_passe_oublie():
     return redirect(url_for('mot_de_passe_oublie'))
 
 # ============================================================
-#  TABLEAU DE BORD (GRAPH REPRÉPARATION ACCESSIBLE FRONTIÈRE)
+#  TABLEAU DE BORD
 # ============================================================
 @app.route('/')
 @login_requis
@@ -363,9 +359,7 @@ def index():
     """, (user_id,))
     mois_prec = cur.fetchone()
 
-    # --- Budget du mois courant ---
     budget_info = get_budget_mois(cur, user_id, mois_courant)
-
     conn.close()
 
     stats = {
@@ -382,14 +376,12 @@ def index():
     total_actuel = stats['total_mois']
     variation    = round(((total_actuel-total_prec)/total_prec)*100,1) if total_prec>0 else 0
 
-    # Formatage précis des listes natives pour initialiser Chart.js
     dates_graph = [row['jour'] for row in evolution]
     montants_graph = [float(row['total']) for row in evolution]
     
     cats_graph = [row['categorie'] for row in totaux if row['total'] > 0]
     cats_montants = [float(row['total']) for row in totaux if row['total'] > 0]
 
-    # --- Calcul alertes budget ---
     alerte_budget = None
     pourcentage_budget = 0
     if budget_info and budget_info['montant_budget'] > 0:
@@ -468,7 +460,6 @@ def budget():
         for e in erreurs:
             flash(e, 'error')
 
-    # Charger budgets des 6 derniers mois
     cur.execute("""
         SELECT b.mois,
                b.montant_budget,
@@ -488,7 +479,6 @@ def budget():
 
     budget_actuel = get_budget_mois(cur, user_id, mois_courant)
 
-    # Total depenses mois courant
     cur.execute("""
         SELECT COALESCE(SUM(montant),0) AS total FROM depenses
         WHERE utilisateur_id=%s
@@ -601,20 +591,23 @@ def api_chat_ia():
     conn, cur = get_db()
     
     cur.execute("""
-        SELECT d.montant, d.description, c.nom as categorie, d.date_depense
+        SELECT d.montant, d.description, c.nom as categorie, d.date_depense::text
         FROM depenses d 
         JOIN categories c ON d.categorie_id = c.id
         WHERE d.utilisateur_id = %s
         ORDER BY d.date_depense DESC LIMIT 10
     """, (user_id,))
-    historique_str = str(cur.fetchall())
+    rows = cur.fetchall()
     conn.close()
+
+    # CORRECTION : Formatage propre en JSON lisible pour le modèle Gemini
+    historique_str = json.dumps([{**dict(r), 'montant': float(r['montant'])} for r in rows], ensure_ascii=False)
 
     user_message = messages[-1]['content']
     prompt_complet = f"""
     Tu es Mondjai IA, un conseiller financier personnel expert et bienveillant.
     Ton rôle est d'aider l'utilisateur à gérer son budget.
-    Voici ses dernières dépenses réelles enregistrées en BDD : {historique_str}.
+    Voici ses dernières dépenses réelles enregistrées en BDD (format JSON) : {historique_str}.
     Utilise intelligemment ces données pour lui donner des conseils précis s'il pose des questions sur ses dépenses.
     
     Règles strictes : Sois très concis, utilise des emojis, et exprime les montants en FCFA.
@@ -701,7 +694,10 @@ def historique():
     cat_id   = request.args.get('categorie', '')
     page     = max(1, int(request.args.get('page', 1)))
     par_page = 15
-    params = [user_id, mois+'-01']
+    
+    # Correction format date sécurisé
+    mois_cible = mois + '-01' if len(mois) == 7 else date.today().strftime('%Y-%m') + '-01'
+    params = [user_id, mois_cible]
     where  = ["d.utilisateur_id=%s",
               "DATE_TRUNC('month',d.date_depense)=DATE_TRUNC('month',%s::date)"]
     if cat_id:
@@ -765,28 +761,37 @@ def modifier(dep_id):
     cur.execute("SELECT id, nom, icone FROM categories ORDER BY nom")
     categories = cur.fetchall()
     
+    # CORRECTION : Bloc complet et finalisation de la méthode POST
     if request.method == 'POST':
-        montant = request.form.get('montant', '').replace(',', '.')
-        description = request.form.get('description', '').strip()
+        montant      = request.form.get('montant', '').replace(',', '.')
+        description  = request.form.get('description', '').strip()
         categorie_id = request.form.get('categorie_id')
-        date_str = request.form.get('date_depense', str(date.today()))
+        date_str     = request.form.get('date_depense')
         
+        erreurs = []
         try:
             montant = float(montant)
+            if montant <= 0: erreurs.append("Le montant doit être positif.")
+        except ValueError:
+            erreurs.append("Montant invalide.")
+        if not categorie_id: erreurs.append("Veuillez choisir une catégorie.")
+        
+        if erreurs:
+            for e in erreurs: flash(e, 'error')
+        else:
             cur.execute("""
                 UPDATE depenses 
                 SET montant=%s, description=%s, categorie_id=%s, date_depense=%s
                 WHERE id=%s AND utilisateur_id=%s
             """, (montant, description or None, categorie_id, date_str, dep_id, user_id))
             conn.commit()
-            flash("Depense modifiee avec succes !", "success")
+            flash("Dépense mise à jour avec succès !", 'success')
             conn.close()
             return redirect(url_for('historique'))
-        except ValueError:
-            flash("Montant invalide.", "error")
             
     conn.close()
     return render_template('modifier.html', depense=depense, categories=categories)
 
+# Lancement de l'application Flask
 if __name__ == '__main__':
     app.run(debug=True)
