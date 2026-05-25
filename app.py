@@ -83,9 +83,10 @@ if not GEMINI_API_KEY:
     raise ValueError("⚠️ ERREUR FATALE : La clé GEMINI_API_KEY est introuvable dans l'environnement Vercel.")
 
 genai.configure(api_key=GEMINI_API_KEY)
-
-# Tu peux remettre le modèle récent maintenant
-model = genai.GenerativeModel('gemini-1.5-flash')
+gemini_model = genai.GenerativeModel(
+    model_name="gemini-2.0-flash",   
+    system_instruction=system_prompt
+)
 def generer_code():
     return ''.join(random.choices(string.digits, k=6))
 
