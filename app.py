@@ -1,6 +1,6 @@
 """
 MONDJAI — Carnet de Dépenses Personnelles
-Flask + PostgreSQL + Auth + Reset mdp + Budget + Objectifs + Agent IA
+Flask + PostgreSQL + Auth + Reset mdp + Budget + Objectifs + Agent IA (Groq/Llama3)
 """
 
 from flask import (Flask, render_template, request, redirect,
@@ -15,18 +15,20 @@ import random
 import string
 import os
 import json
-import google.generativeai as genai
+from groq import Groq
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 
 app = Flask(__name__)
 app.secret_key = os.environ.get('SECRET_KEY', 'mondjai_secret_2026')
+
 @app.template_filter('format_fcfa')
 def format_fcfa(value):
     try:
         return f"{int(float(value)):,}".replace(',', ' ')
     except (ValueError, TypeError):
         return str(value)
+
 # ============================================================
 #  BASE DE DONNEES
 # ============================================================
@@ -81,9 +83,9 @@ except ImportError:
     SMTP_PORT          = 587
 
 # ============================================================
-#  GEMINI — clé uniquement, RIEN d'autre au niveau module
+#  GROQ IA — clé uniquement, RIEN d'autre au niveau module
 # ============================================================
-GEMINI_API_KEY = os.environ.get('GEMINI_API_KEY', '')
+GROQ_API_KEY = os.environ.get('GROQ_API_KEY', '')
 
 def generer_code():
     return ''.join(random.choices(string.digits, k=6))
@@ -536,8 +538,8 @@ def chat_ia():
 @app.route('/api/chat-ia', methods=['POST'])
 @login_requis
 def api_chat_ia():
-    if not GEMINI_API_KEY:
-        return jsonify({'error': 'Cle API Gemini non configuree. Ajoutez GEMINI_API_KEY dans Vercel > Settings > Environment Variables.'}), 503
+    if not GROQ_API_KEY:
+        return jsonify({'error': 'Cle API Groq non configuree. Ajoutez GROQ_API_KEY dans Vercel > Settings > Environment Variables.'}), 503
 
     data     = request.get_json(silent=True) or {}
     messages = data.get('messages', [])
@@ -603,23 +605,34 @@ REGLES :
 7. Les montants sont en FCFA (franc CFA ouest-africain)."""
 
     try:
-        # Tout se passe ICI dans la route, jamais au niveau module
-        genai.configure(api_key=GEMINI_API_KEY)
-        gemini_model = genai.GenerativeModel(
-            model_name="gemini-2.0-flash-lite",
-            system_instruction=system_prompt
-        )
-        gemini_history = []
-        for msg in messages[:-1]:
-            gemini_history.append({
-                "role":  "user" if msg["role"] == "user" else "model",
-                "parts": [msg["content"]]
+        # Appel à l'API Groq
+        client = Groq(api_key=GROQ_API_KEY)
+        
+        # 1. Initialisation de la liste des messages pour Groq
+        groq_messages = [
+            {"role": "system", "content": system_prompt}
+        ]
+        
+        # 2. Ajout de l'historique de la conversation
+        for msg in messages:
+            role = "user" if msg["role"] == "user" else "assistant"
+            groq_messages.append({
+                "role": role,
+                "content": msg["content"]
             })
-        chat     = gemini_model.start_chat(history=gemini_history)
-        response = chat.send_message(messages[-1]["content"])
-        return jsonify({'response': response.text})
+            
+        # 3. Appel du modèle Llama 3
+        chat_completion = client.chat.completions.create(
+            messages=groq_messages,
+            model="llama3-8b-8192" 
+        )
+        
+        # 4. Renvoi de la réponse au front-end
+        reponse_texte = chat_completion.choices[0].message.content
+        return jsonify({'response': reponse_texte})
+
     except Exception as e:
-        return jsonify({'error': f"Erreur Gemini : {str(e)}"}), 500
+        return jsonify({'error': f"Erreur IA : {str(e)}"}), 500
 
 # ============================================================
 #  AJOUTER
@@ -725,20 +738,22 @@ def historique():
         depenses=depenses, categories=categories,
         mois=mois, cat_id=cat_id, page=page, nb_pages=nb_pages,
         total=total, total_filtre=total_filtre)
-
-# ============================================================
+  # ============================================================
 #  SUPPRIMER / MODIFIER
 # ============================================================
 @app.route('/supprimer/<int:dep_id>', methods=['POST'])
 @login_requis
 def supprimer(dep_id):
     conn, cur = get_db()
-    cur.execute("DELETE FROM depenses WHERE id=%s AND utilisateur_id=%s",
-                (dep_id, session['utilisateur_id']))
-    conn.commit()
-    conn.close()
-    flash("Depense supprimee.", 'info')
-    return redirect(request.referrer or url_for('historique'))
+    try:
+        cur.execute("DELETE FROM depenses WHERE id=%s AND utilisateur_id=%s",
+                    (dep_id, session['utilisateur_id']))
+        conn.commit()
+        flash("Depense supprimee.", 'info')
+        return redirect(request.referrer or url_for('historique'))
+    finally:
+        # Fermeture garantie de la connexion
+        conn.close()
 
 
 @app.route('/modifier/<int:dep_id>', methods=['GET', 'POST'])
@@ -746,42 +761,54 @@ def supprimer(dep_id):
 def modifier(dep_id):
     user_id = session['utilisateur_id']
     conn, cur = get_db()
-    cur.execute("""
-        SELECT id, montant, description, categorie_id, date_depense::text
-        FROM depenses WHERE id=%s AND utilisateur_id=%s
-    """, (dep_id, user_id))
-    depense = cur.fetchone()
-    if not depense:
-        conn.close()
-        flash("Depense introuvable.", 'error')
-        return redirect(url_for('historique'))
-    cur.execute("SELECT id, nom, icone FROM categories ORDER BY nom")
-    categories = cur.fetchall()
-    if request.method == 'POST':
-        montant      = request.form.get('montant', '').replace(',', '.')
-        description  = request.form.get('description', '').strip()
-        categorie_id = request.form.get('categorie_id')
-        date_str     = request.form.get('date_depense')
-        erreurs = []
-        try:
-            montant = float(montant)
-            if montant <= 0: erreurs.append("Le montant doit etre positif.")
-        except ValueError:
-            erreurs.append("Montant invalide.")
-        if not categorie_id: erreurs.append("Veuillez choisir une categorie.")
-        if erreurs:
-            for e in erreurs: flash(e, 'error')
-        else:
-            cur.execute("""
-                UPDATE depenses SET montant=%s, description=%s, categorie_id=%s, date_depense=%s
-                WHERE id=%s AND utilisateur_id=%s
-            """, (montant, description or None, categorie_id, date_str, dep_id, user_id))
-            conn.commit()
-            flash("Depense mise a jour !", 'success')
-            conn.close()
+    
+    try:
+        cur.execute("""
+            SELECT id, montant, description, categorie_id, date_depense::text
+            FROM depenses WHERE id=%s AND utilisateur_id=%s
+        """, (dep_id, user_id))
+        depense = cur.fetchone()
+        
+        if not depense:
+            flash("Depense introuvable.", 'error')
             return redirect(url_for('historique'))
-    conn.close()
-    return render_template('modifier.html', depense=depense, categories=categories)
+
+        cur.execute("SELECT id, nom, icone FROM categories ORDER BY nom")
+        categories = cur.fetchall()
+
+        if request.method == 'POST':
+            montant      = request.form.get('montant', '').replace(',', '.')
+            description  = request.form.get('description', '').strip()
+            categorie_id = request.form.get('categorie_id')
+            date_str     = request.form.get('date_depense')
+            
+            erreurs = []
+            
+            try:
+                montant = float(montant)
+                if montant <= 0: erreurs.append("Le montant doit etre positif.")
+            except ValueError:
+                erreurs.append("Montant invalide.")
+                
+            if not categorie_id: erreurs.append("Veuillez choisir une categorie.")
+            if not date_str: erreurs.append("Veuillez specifier une date.")
+            
+            if erreurs:
+                for e in erreurs: flash(e, 'error')
+            else:
+                cur.execute("""
+                    UPDATE depenses SET montant=%s, description=%s, categorie_id=%s, date_depense=%s
+                    WHERE id=%s AND utilisateur_id=%s
+                """, (montant, description or None, categorie_id, date_str, dep_id, user_id))
+                conn.commit()
+                flash("Depense mise a jour !", 'success')
+                return redirect(url_for('historique'))
+                
+        return render_template('modifier.html', depense=depense, categories=categories)
+        
+    finally:
+        # Fermeture garantie de la connexion
+        conn.close()
 
 # ============================================================
 #  LANCEMENT
