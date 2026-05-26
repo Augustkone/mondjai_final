@@ -7,168 +7,222 @@
     <h1 class="page-title">Tableau de bord</h1>
     <p class="page-subtitle">{{ mois_nom }} {{ annee }}</p>
   </div>
-  <a href="{{ url_for('ajouter') }}" class="btn btn--primary">+ Nouvelle depense</a>
+  <a href="{{ url_for('ajouter') }}" class="btn btn--primary">+ Nouvelle dépense</a>
 </div>
 
 <!-- KPI -->
 <div class="kpi-grid">
   <div class="kpi-card kpi-card--accent">
     <div class="kpi-label">Total du mois</div>
-    <div class="kpi-value">{{ "{:,.0f}".format(stats.total_mois).replace(","," ") }} <span class="kpi-currency">FCFA</span></div>
+    <div class="kpi-value">
+      {{ "{:,.0f}".format(stats.total_mois).replace(","," ") }}
+      <span class="kpi-currency">FCFA</span>
+    </div>
+    {% if variation != 0 %}
+    <div class="kpi-sub {% if variation > 0 %}kpi-sub--up{% else %}kpi-sub--down{% endif %}">
+      {% if variation > 0 %}+{% endif %}{{ variation }}% vs mois précédent
+    </div>
+    {% endif %}
   </div>
   <div class="kpi-card">
-    <div class="kpi-label">Nb depenses</div>
+    <div class="kpi-label">Nb dépenses</div>
     <div class="kpi-value">{{ stats.nb_depenses }}</div>
+    <div class="kpi-sub">{{ stats.nb_jours_actifs }} jours actifs</div>
   </div>
   <div class="kpi-card">
-    <div class="kpi-label">Moy. journaliere</div>
-    <div class="kpi-value">{{ "{:,.0f}".format(stats.moyenne_journaliere).replace(","," ") }} <span class="kpi-currency">FCFA</span></div>
-  </div>
-  {% if variation != 0 %}
-  <div class="kpi-card">
-    <div class="kpi-label">vs mois precedent</div>
-    <div class="kpi-value" style="color:{% if variation > 0 %}#ef4444{% else %}#10b981{% endif %};">
-      {% if variation > 0 %}+{% endif %}{{ variation }}%
+    <div class="kpi-label">Moyenne journalière</div>
+    <div class="kpi-value">
+      {{ "{:,.0f}".format(stats.moyenne_journaliere).replace(","," ") }}
+      <span class="kpi-currency">FCFA</span>
     </div>
   </div>
-  {% endif %}
+  <div class="kpi-card">
+    <div class="kpi-label">Par dépense</div>
+    <div class="kpi-value">
+      {{ "{:,.0f}".format(stats.moyenne_par_depense).replace(","," ") }}
+      <span class="kpi-currency">FCFA</span>
+    </div>
+  </div>
 </div>
 
 <!-- BARRE BUDGET -->
 {% if budget_info and budget_info.montant_budget > 0 %}
-<div style="background:#1e293b;border-radius:12px;padding:1rem 1.25rem;margin-bottom:1.25rem;">
-  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.5rem;">
-    <span style="font-size:.85rem;color:#94a3b8;font-weight:600;">
-      💰 Budget {{ mois_nom }} — {{ pourcentage_budget }}% utilisé
+<div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);
+            padding:1.25rem 1.5rem;margin-bottom:1.5rem;
+            border-left:3px solid {% if pourcentage_budget >= 100 %}var(--danger){% elif pourcentage_budget >= budget_info.seuil_alerte %}var(--accent){% else %}var(--success){% endif %};">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.75rem;flex-wrap:wrap;gap:.5rem;">
+    <span style="font-size:.82rem;font-weight:600;color:var(--text-dim);text-transform:uppercase;letter-spacing:.08em;">
+      Budget {{ mois_nom }}
     </span>
-    <a href="{{ url_for('budget') }}" style="font-size:.8rem;color:#f59e0b;text-decoration:none;">Modifier ➜</a>
+    <div style="display:flex;align-items:center;gap:1rem;">
+      <span style="font-size:.85rem;color:var(--text-dim);">
+        {{ "{:,.0f}".format(stats.total_mois).replace(","," ") }} /
+        {{ "{:,.0f}".format(budget_info.montant_budget).replace(","," ") }} FCFA
+      </span>
+      <span style="font-size:.82rem;font-weight:700;padding:.2rem .7rem;border-radius:999px;
+                   background:{% if pourcentage_budget >= 100 %}rgba(239,68,68,.15){% elif pourcentage_budget >= budget_info.seuil_alerte %}rgba(245,158,11,.15){% else %}rgba(16,185,129,.15){% endif %};
+                   color:{% if pourcentage_budget >= 100 %}var(--danger){% elif pourcentage_budget >= budget_info.seuil_alerte %}var(--accent){% else %}var(--success){% endif %};">
+        {{ pourcentage_budget }}%
+      </span>
+      <a href="{{ url_for('budget') }}" style="font-size:.8rem;color:var(--accent);text-decoration:none;font-weight:600;">Modifier</a>
+    </div>
   </div>
-  <div style="height:10px;background:#0f172a;border-radius:5px;overflow:hidden;">
-    <div style="height:100%;border-radius:5px;width:{{ [pourcentage_budget,100]|min }}%;transition:width .5s;
-      background:{% if pourcentage_budget >= 100 %}linear-gradient(90deg,#ef4444,#f87171)
-                 {% elif pourcentage_budget >= budget_info.seuil_alerte %}linear-gradient(90deg,#f59e0b,#fbbf24)
-                 {% else %}linear-gradient(90deg,#10b981,#34d399){% endif %};"></div>
-  </div>
-  <div style="display:flex;justify-content:space-between;font-size:.75rem;color:#64748b;margin-top:.35rem;">
-    <span>{{ "{:,.0f}".format(stats.total_mois).replace(","," ") }} FCFA dépensés</span>
-    <span>Budget : {{ "{:,.0f}".format(budget_info.montant_budget).replace(","," ") }} FCFA</span>
+  <div style="height:8px;background:var(--surface-3);border-radius:9999px;overflow:hidden;">
+    <div style="height:100%;border-radius:9999px;transition:width .6s cubic-bezier(.21,1.02,.73,1);
+                width:{{ [pourcentage_budget,100]|min }}%;
+                background:{% if pourcentage_budget >= 100 %}var(--danger){% elif pourcentage_budget >= budget_info.seuil_alerte %}var(--accent){% else %}var(--success){% endif %};"></div>
   </div>
   {% if budget_info.objectif %}
-  <div style="font-size:.78rem;color:#f59e0b;margin-top:.3rem;">🎯 {{ budget_info.objectif }}</div>
+  <div style="margin-top:.6rem;font-size:.8rem;color:var(--text-muted);">
+    Objectif : {{ budget_info.objectif }}{% if budget_info.objectif_montant > 0 %} — {{ "{:,.0f}".format(budget_info.objectif_montant).replace(","," ") }} FCFA{% endif %}
+  </div>
   {% endif %}
 </div>
 
 {% if alerte_budget %}
-<div style="display:flex;align-items:center;gap:1rem;padding:.9rem 1.25rem;border-radius:10px;margin-bottom:1.25rem;flex-wrap:wrap;
-  background:{% if alerte_budget.critique %}rgba(239,68,68,.12){% else %}rgba(245,158,11,.12){% endif %};
-  border-left:4px solid {% if alerte_budget.critique %}#ef4444{% else %}#f59e0b{% endif %};">
-  <span style="font-size:1.3rem;">{% if alerte_budget.critique %}🚨{% else %}⚠️{% endif %}</span>
-  <div style="flex:1;color:#e2e8f0;font-size:.9rem;">
-    <strong>{% if alerte_budget.critique %}Budget dépassé !{% else %}Attention au budget !{% endif %}</strong>
-    {{ alerte_budget.pourcentage }}% utilisé —
+<div style="display:flex;align-items:center;gap:1rem;padding:1rem 1.25rem;border-radius:var(--radius);
+            margin-bottom:1.5rem;flex-wrap:wrap;
+            background:{% if alerte_budget.critique %}rgba(239,68,68,.08){% else %}rgba(245,158,11,.08){% endif %};
+            border:1px solid {% if alerte_budget.critique %}rgba(239,68,68,.3){% else %}rgba(245,158,11,.3){% endif %};">
+  <div style="flex:1;font-size:.9rem;color:var(--text);">
+    <strong>{% if alerte_budget.critique %}Limite atteinte —{% else %}Budget à surveiller —{% endif %}</strong>
+    {{ alerte_budget.pourcentage }}% consommé.
     {% if alerte_budget.restant > 0 %}
-      il reste <strong>{{ "{:,.0f}".format(alerte_budget.restant).replace(","," ") }} FCFA</strong>.
-    {% else %}limite mensuelle dépassée.{% endif %}
+      Reste {{ "{:,.0f}".format(alerte_budget.restant).replace(","," ") }} FCFA.
+    {% endif %}
   </div>
   <a href="{{ url_for('chat_ia') }}"
-     style="background:{% if alerte_budget.critique %}#ef4444{% else %}#f59e0b{% endif %};
-            color:{% if alerte_budget.critique %}#fff{% else %}#1e293b{% endif %};
-            font-weight:700;padding:.35rem .9rem;border-radius:7px;text-decoration:none;font-size:.83rem;">
-    💬 Conseils IA
+     style="font-size:.82rem;font-weight:600;padding:.4rem 1rem;border-radius:var(--radius-sm);text-decoration:none;
+            background:{% if alerte_budget.critique %}var(--danger){% else %}var(--accent){% endif %};
+            color:{% if alerte_budget.critique %}#fff{% else %}#1a1206{% endif %};">
+    Obtenir des conseils
   </a>
 </div>
 {% endif %}
 
 {% else %}
-<div style="background:#1e293b;border-radius:12px;padding:.85rem 1.25rem;margin-bottom:1.25rem;
+<div style="background:var(--surface);border:1px dashed var(--border);border-radius:var(--radius);
+            padding:.9rem 1.5rem;margin-bottom:1.5rem;
             display:flex;align-items:center;justify-content:space-between;">
-  <span style="color:#64748b;font-size:.88rem;">Aucun budget défini pour ce mois</span>
-  <a href="{{ url_for('budget') }}" style="color:#f59e0b;text-decoration:none;font-weight:700;font-size:.88rem;">Définir un budget →</a>
+  <span style="color:var(--text-muted);font-size:.88rem;">Aucun budget défini pour ce mois</span>
+  <a href="{{ url_for('budget') }}" style="color:var(--accent);text-decoration:none;font-weight:600;font-size:.88rem;">Définir un budget</a>
 </div>
 {% endif %}
 
 <!-- GRAPHIQUES -->
 <div class="charts-grid">
   <div class="chart-card chart-card--wide">
-    <h2 class="chart-title">Evolution sur 30 jours</h2>
-    <div class="chart-wrap"><canvas id="chartEvolution"></canvas></div>
+    <h2 class="chart-title">Évolution des dépenses — 30 jours</h2>
+    <div style="display:flex;gap:1.5rem;margin-bottom:1rem;flex-wrap:wrap;">
+      <div style="font-size:.78rem;color:var(--text-muted);">
+        <span style="display:inline-block;width:10px;height:10px;background:var(--accent);border-radius:2px;margin-right:.35rem;"></span>
+        Dépense journalière
+      </div>
+      <div style="font-size:.78rem;color:var(--text-muted);">
+        <span style="display:inline-block;width:20px;height:2px;background:#60a5fa;border-radius:2px;margin-right:.35rem;vertical-align:middle;"></span>
+        Tendance
+      </div>
+    </div>
+    <div class="chart-wrap" style="height:260px;"><canvas id="chartEvolution"></canvas></div>
   </div>
   <div class="chart-card">
-    <h2 class="chart-title">Repartition par categorie</h2>
-    <div class="chart-wrap chart-wrap--donut"><canvas id="chartRepartition"></canvas></div>
+    <h2 class="chart-title">Répartition</h2>
+    <div class="chart-wrap chart-wrap--donut" style="height:220px;"><canvas id="chartRepartition"></canvas></div>
   </div>
 </div>
 
-<!-- CHAT IA MINI -->
-<div class="card" style="margin-top:1.25rem;border:1px solid #334155;">
-  <h2 class="card-title">🤖 Mondjai IA</h2>
-  <div id="chat-messages"
-       style="height:220px;overflow-y:auto;margin-bottom:.75rem;padding:1rem;
-              background:#0f172a;border-radius:8px;border:1px solid #1e293b;">
-    <p style="color:#94a3b8;font-size:.9em;margin:0;">
-      Bonjour ! Je suis Mondjai IA. Posez-moi une question sur vos finances.
-    </p>
+<!-- CONSEILLER + CATEGORIES + RECENTES -->
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1rem;">
+
+  <!-- MINI CHAT -->
+  <div class="card" style="grid-column:1/-1;">
+    <h2 class="card-title">Conseiller financier</h2>
+    <div id="chat-messages"
+         style="height:200px;overflow-y:auto;margin-bottom:.75rem;padding:1rem;
+                background:var(--bg-soft);border-radius:var(--radius-sm);
+                border:1px solid var(--border);display:flex;flex-direction:column;gap:.5rem;">
+      <div style="align-self:flex-start;max-width:80%;background:var(--surface-2);
+                  border-radius:12px;border-bottom-left-radius:3px;padding:.65rem .9rem;
+                  font-size:.88rem;color:var(--text-dim);line-height:1.5;">
+        Bonjour {{ session.utilisateur_nom }}. Je suis votre conseiller financier personnel.
+        Posez-moi une question sur vos dépenses, votre budget ou vos objectifs d'épargne.
+      </div>
+    </div>
+    <div style="display:flex;gap:.6rem;">
+      <input type="text" id="user-input"
+             placeholder="Votre question..."
+             style="flex:1;padding:.65rem 1rem;border-radius:var(--radius-sm);
+                    border:1px solid var(--border);background:var(--surface);
+                    color:var(--text);font-size:.9rem;font-family:inherit;outline:none;
+                    transition:border-color .2s;" />
+      <button id="btn-envoyer" onclick="envoyerMessage()"
+              style="padding:.65rem 1.25rem;background:var(--grad-accent);border:none;
+                     border-radius:var(--radius-sm);cursor:pointer;font-weight:600;
+                     color:#1a1206;font-size:.88rem;font-family:inherit;white-space:nowrap;
+                     transition:opacity .2s;">
+        Envoyer
+      </button>
+    </div>
+    <div style="margin-top:.5rem;font-size:.75rem;color:var(--text-muted);display:flex;justify-content:space-between;align-items:center;">
+      <span>Entrée pour envoyer</span>
+      <a href="{{ url_for('chat_ia') }}" style="color:var(--accent);text-decoration:none;font-weight:600;">
+        Conversation complète →
+      </a>
+    </div>
   </div>
-  <div style="display:flex;gap:.6rem;">
-    <input type="text" id="user-input"
-           placeholder="Ex: Comment puis-je réduire mes dépenses ?"
-           style="flex-grow:1;padding:.6rem .9rem;border-radius:7px;
-                  border:1px solid #334155;background:#1e293b;color:#e2e8f0;font-size:.9rem;" />
-    <button id="btn-envoyer" onclick="envoyerMessage()"
-            style="padding:.6rem 1.2rem;background:#f59e0b;border:none;border-radius:7px;
-                   cursor:pointer;font-weight:700;color:#0f172a;">Envoyer</button>
-  </div>
-  <p style="font-size:.75rem;color:#475569;margin:.4rem 0 0;text-align:center;">
-    <a href="{{ url_for('chat_ia') }}" style="color:#f59e0b;text-decoration:none;">Ouvrir le chat complet ↗</a>
-  </p>
 </div>
 
-<!-- CATEGORIES + DERNIERES DEPENSES -->
 <div class="bottom-grid">
+  <!-- CATEGORIES -->
   <div class="card">
-    <h2 class="card-title">Categories du mois</h2>
+    <h2 class="card-title">Catégories du mois</h2>
     {% set totaux_nonzero = totaux | selectattr('total', 'gt', 0) | list %}
     {% if totaux_nonzero %}
+    <ul class="cat-list">
       {% for cat in totaux_nonzero %}
-      <div style="display:flex;align-items:center;gap:.75rem;padding:.5rem 0;border-bottom:1px solid #1e293b;">
-        <span style="font-size:1.2rem;">{{ cat.icone }}</span>
-        <div style="flex:1;">
-          <div style="display:flex;justify-content:space-between;font-size:.88rem;margin-bottom:.2rem;">
-            <span style="color:#e2e8f0;">{{ cat.categorie }}</span>
-            <span style="color:#f59e0b;font-weight:700;">{{ "{:,.0f}".format(cat.total).replace(","," ") }} FCFA</span>
+      <li class="cat-item">
+        <div class="cat-icone">{{ cat.icone }}</div>
+        <div class="cat-info">
+          <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:.3rem;">
+            <span class="cat-nom" style="margin-bottom:0;">{{ cat.categorie }}</span>
+            <span style="font-size:.85rem;font-weight:600;color:var(--text);">
+              {{ "{:,.0f}".format(cat.total).replace(","," ") }} FCFA
+            </span>
           </div>
-          {% if stats.total_mois > 0 %}
-          <div style="height:4px;background:#0f172a;border-radius:2px;overflow:hidden;">
-            <div style="height:100%;background:{{ cat.couleur }};width:{{ ((cat.total/stats.total_mois)*100)|round(1) }}%;"></div>
+          <div class="progress-bar">
+            <div class="progress-bar__fill"
+                 style="width:{% if stats.total_mois > 0 %}{{ ((cat.total / stats.total_mois) * 100) | round(1) }}%{% else %}0%{% endif %};background:{{ cat.couleur }};box-shadow:none;"></div>
           </div>
-          {% endif %}
         </div>
-      </div>
+      </li>
       {% endfor %}
+    </ul>
     {% else %}
-      <p style="color:#64748b;font-size:.88rem;margin-top:.5rem;">Aucune dépense ce mois.</p>
+    <p class="empty-state">Aucune dépense ce mois.</p>
     {% endif %}
   </div>
 
+  <!-- DERNIERES DEPENSES -->
   <div class="card">
-    <h2 class="card-title">Dernieres depenses</h2>
+    <h2 class="card-title">Dernières dépenses</h2>
     {% if dernieres %}
+    <ul class="recent-list">
       {% for dep in dernieres %}
-      <div style="display:flex;align-items:center;gap:.75rem;padding:.5rem 0;border-bottom:1px solid #1e293b;">
-        <span style="font-size:1.2rem;">{{ dep.icone }}</span>
-        <div style="flex:1;">
-          <div style="font-size:.88rem;color:#e2e8f0;">{{ dep.description or dep.categorie }}</div>
-          <div style="font-size:.75rem;color:#64748b;">{{ dep.date_depense }} · {{ dep.categorie }}</div>
+      <li class="recent-item">
+        <div class="recent-icone" style="background:{{ dep.couleur }}22;">
+          {{ dep.icone }}
         </div>
-        <span style="font-weight:700;color:#f59e0b;font-size:.9rem;white-space:nowrap;">
-          {{ "{:,.0f}".format(dep.montant).replace(","," ") }} FCFA
-        </span>
-      </div>
+        <div class="recent-info">
+          <span class="recent-desc">{{ dep.description or dep.categorie }}</span>
+          <span class="recent-date">{{ dep.date_depense }} · {{ dep.categorie }}</span>
+        </div>
+        <span class="recent-montant">{{ "{:,.0f}".format(dep.montant).replace(","," ") }} FCFA</span>
+      </li>
       {% endfor %}
-      <a href="{{ url_for('historique') }}" style="display:block;text-align:center;color:#f59e0b;
-         text-decoration:none;font-size:.83rem;margin-top:.75rem;">Voir tout l'historique →</a>
+    </ul>
+    <a href="{{ url_for('historique') }}" class="link-more">Voir tout l'historique</a>
     {% else %}
-      <p style="color:#64748b;font-size:.88rem;margin-top:.5rem;">Aucune dépense enregistrée.</p>
+    <p class="empty-state">Aucune dépense enregistrée.</p>
     {% endif %}
   </div>
 </div>
@@ -179,166 +233,256 @@
 const evolutionData   = {{ evolution  | tojson }};
 const repartitionData = {{ totaux     | tojson }};
 
-// Graphique évolution (ligne)
-(function(){
+// ── Graphique évolution : barres + ligne de tendance ─────────────
+(function () {
   const ctx = document.getElementById('chartEvolution');
   if (!ctx) return;
-  const labels = evolutionData.map(d => {
-    const dt = new Date(d.jour);
-    return dt.toLocaleDateString('fr-FR', { day:'2-digit', month:'short' });
-  });
-  const values = evolutionData.map(d => parseFloat(d.total) || 0);
-  if (!values.length) {
-    ctx.parentElement.innerHTML = '<p style="color:#64748b;text-align:center;padding:2rem;">Aucune donnée sur 30 jours.</p>';
+
+  if (!evolutionData.length) {
+    ctx.parentElement.innerHTML =
+      '<p style="color:var(--text-muted);text-align:center;padding:3rem 1rem;font-size:.9rem;">Aucune dépense sur les 30 derniers jours.</p>';
     return;
   }
+
+  const labels  = evolutionData.map(d => {
+    const [y, m, j] = d.jour.split('-');
+    return `${j}/${m}`;
+  });
+  const values  = evolutionData.map(d => parseFloat(d.total) || 0);
+
+  // Calcul ligne de tendance (régression linéaire simple)
+  const n     = values.length;
+  const sumX  = values.reduce((a, _, i) => a + i, 0);
+  const sumY  = values.reduce((a, v) => a + v, 0);
+  const sumXY = values.reduce((a, v, i) => a + i * v, 0);
+  const sumX2 = values.reduce((a, _, i) => a + i * i, 0);
+  const slope = (n * sumXY - sumX * sumY) / (n * sumX2 - sumX * sumX);
+  const inter = (sumY - slope * sumX) / n;
+  const trend = values.map((_, i) => Math.round(inter + slope * i));
+
   new Chart(ctx, {
-    type: 'line',
     data: {
       labels,
-      datasets: [{
-        label: 'Dépenses (FCFA)',
-        data: values,
-        borderColor: '#f59e0b',
-        backgroundColor: 'rgba(245,158,11,0.12)',
-        borderWidth: 2.5,
-        pointBackgroundColor: '#f59e0b',
-        pointRadius: 4,
-        pointHoverRadius: 6,
-        fill: true,
-        tension: 0.35,
-      }]
+      datasets: [
+        {
+          type: 'bar',
+          label: 'Dépenses (FCFA)',
+          data: values,
+          backgroundColor: values.map(v =>
+            v === Math.max(...values)
+              ? 'rgba(245,158,11,.85)'
+              : 'rgba(245,158,11,.35)'
+          ),
+          borderColor: 'rgba(245,158,11,.7)',
+          borderWidth: 1,
+          borderRadius: 4,
+          order: 2,
+        },
+        {
+          type: 'line',
+          label: 'Tendance',
+          data: trend,
+          borderColor: '#60a5fa',
+          borderWidth: 2,
+          borderDash: [4, 4],
+          pointRadius: 0,
+          fill: false,
+          tension: 0.3,
+          order: 1,
+        }
+      ]
     },
     options: {
       responsive: true,
       maintainAspectRatio: false,
+      interaction: { mode: 'index', intersect: false },
       plugins: {
         legend: { display: false },
         tooltip: {
-          backgroundColor: '#1e293b',
+          backgroundColor: 'rgba(14,22,38,.95)',
           titleColor: '#94a3b8',
-          bodyColor: '#f59e0b',
-          callbacks: { label: c => c.parsed.y.toLocaleString('fr-FR') + ' FCFA' }
+          bodyColor: '#e6edf7',
+          borderColor: 'rgba(148,163,184,.15)',
+          borderWidth: 1,
+          padding: 10,
+          callbacks: {
+            label: ctx =>
+              ctx.dataset.label + ' : ' +
+              ctx.parsed.y.toLocaleString('fr-FR') + ' FCFA'
+          }
         }
       },
       scales: {
-        x: { grid: { color:'rgba(51,65,85,.5)' }, ticks: { color:'#64748b', maxTicksLimit:10 } },
-        y: { grid: { color:'rgba(51,65,85,.5)' }, ticks: { color:'#64748b', callback: v => v.toLocaleString('fr-FR') } }
+        x: {
+          grid: { color: 'rgba(148,163,184,.07)', drawBorder: false },
+          ticks: { color: '#64748b', font: { size: 11 }, maxTicksLimit: 12 }
+        },
+        y: {
+          grid: { color: 'rgba(148,163,184,.07)', drawBorder: false },
+          ticks: {
+            color: '#64748b',
+            font: { size: 11 },
+            callback: v => v >= 1000 ? (v/1000).toFixed(0) + 'k' : v
+          }
+        }
       }
     }
   });
 })();
 
-// Graphique répartition (donut)
-(function(){
-  const ctx = document.getElementById('chartRepartition');
+// ── Graphique répartition : donut ─────────────────────────────────
+(function () {
+  const ctx      = document.getElementById('chartRepartition');
   if (!ctx) return;
   const filtered = repartitionData.filter(d => parseFloat(d.total) > 0);
+
   if (!filtered.length) {
-    ctx.parentElement.innerHTML = '<p style="color:#64748b;text-align:center;padding:2rem;">Aucune dépense ce mois.</p>';
+    ctx.parentElement.innerHTML =
+      '<p style="color:var(--text-muted);text-align:center;padding:3rem 1rem;font-size:.9rem;">Aucune dépense ce mois.</p>';
     return;
   }
+
+  const total = filtered.reduce((s, d) => s + parseFloat(d.total), 0);
+
   new Chart(ctx, {
     type: 'doughnut',
     data: {
-      labels: filtered.map(d => d.categorie),
+      labels:   filtered.map(d => d.categorie),
       datasets: [{
-        data: filtered.map(d => parseFloat(d.total) || 0),
+        data:            filtered.map(d => parseFloat(d.total)),
         backgroundColor: filtered.map(d => d.couleur || '#6b7280'),
-        borderColor: '#0f172a',
-        borderWidth: 3,
-        hoverOffset: 8,
+        borderColor:     'var(--bg)',
+        borderWidth:     3,
+        hoverOffset:     6,
       }]
     },
     options: {
       responsive: true,
       maintainAspectRatio: false,
-      cutout: '65%',
+      cutout: '68%',
       plugins: {
         legend: {
           position: 'bottom',
-          labels: { color:'#94a3b8', font:{ size:12 }, padding:14, usePointStyle:true }
+          labels: {
+            color: '#94a3b8', font: { size: 11 },
+            padding: 12, usePointStyle: true, pointStyleWidth: 8,
+          }
         },
         tooltip: {
-          backgroundColor: '#1e293b',
-          titleColor: '#e2e8f0',
-          bodyColor: '#f59e0b',
-          callbacks: { label: c => ' ' + c.parsed.toLocaleString('fr-FR') + ' FCFA' }
+          backgroundColor: 'rgba(14,22,38,.95)',
+          titleColor: '#94a3b8',
+          bodyColor: '#e6edf7',
+          borderColor: 'rgba(148,163,184,.15)',
+          borderWidth: 1,
+          callbacks: {
+            label: ctx => {
+              const pct = ((ctx.parsed / total) * 100).toFixed(1);
+              return ` ${ctx.parsed.toLocaleString('fr-FR')} FCFA (${pct}%)`;
+            }
+          }
         }
       }
     }
   });
 })();
 
-// Chat IA mini
-const input       = document.getElementById('user-input');
-const chat        = document.getElementById('chat-messages');
+// ── Mini chat ─────────────────────────────────────────────────────
+const inputEl     = document.getElementById('user-input');
+const chatBox     = document.getElementById('chat-messages');
 const btnEnvoyer  = document.getElementById('btn-envoyer');
 const chatHistory = [];
 
-input.addEventListener('keypress', e => { if (e.key==='Enter') { e.preventDefault(); envoyerMessage(); } });
+inputEl.addEventListener('focus', () => { inputEl.style.borderColor = 'var(--accent)'; });
+inputEl.addEventListener('blur',  () => { inputEl.style.borderColor = 'var(--border)'; });
+inputEl.addEventListener('keypress', e => {
+  if (e.key === 'Enter') { e.preventDefault(); envoyerMessage(); }
+});
 
 async function envoyerMessage() {
-  const message = input.value.trim();
-  if (!message) return;
+  const msg = inputEl.value.trim();
+  if (!msg) return;
 
-  const pUser = document.createElement('p');
-  pUser.style.cssText = 'text-align:right;color:#f59e0b;margin:5px 0;';
-  pUser.innerHTML = `<b>Moi :</b> ${escapeHtml(message)}`;
-  chat.appendChild(pUser);
-  input.value = '';
-  input.disabled = btnEnvoyer.disabled = true;
+  ajouterBulle('user', msg);
+  chatHistory.push({ role: 'user', content: msg });
+  inputEl.value = '';
+  inputEl.disabled = btnEnvoyer.disabled = true;
 
-  const pLoad = document.createElement('p');
-  pLoad.style.cssText = 'color:#64748b;font-style:italic;margin:5px 0;';
-  pLoad.textContent = 'Mondjai réfléchit...';
-  chat.appendChild(pLoad);
-  chat.scrollTop = chat.scrollHeight;
-  chatHistory.push({ role:'user', content:message });
+  const loader = ajouterLoader();
 
   try {
     const res  = await fetch('/api/chat-ia', {
-      method:'POST',
-      headers:{ 'Content-Type':'application/json' },
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ messages: chatHistory })
     });
     const data = await res.json();
-    pLoad.remove();
+    loader.remove();
+
     if (data.response) {
-      chatHistory.push({ role:'assistant', content:data.response });
-      const pBot = document.createElement('p');
-      pBot.style.cssText = 'color:#cbd5e1;margin:5px 0;line-height:1.5;';
-      pBot.innerHTML = `<b style="color:#10b981;">Mondjai :</b> ${markdownLight(data.response)}`;
-      chat.appendChild(pBot);
+      chatHistory.push({ role: 'assistant', content: data.response });
+      ajouterBulle('bot', data.response);
     } else {
-      const pErr = document.createElement('p');
-      pErr.style.cssText = 'color:#ef4444;margin:5px 0;';
-      pErr.textContent = 'Erreur : ' + (data.error || 'Réponse invalide');
-      chat.appendChild(pErr);
+      ajouterBulle('bot', data.error || 'Une erreur est survenue.', true);
     }
-  } catch(e) {
-    pLoad.remove();
-    const pErr = document.createElement('p');
-    pErr.style.cssText = 'color:#ef4444;margin:5px 0;';
-    pErr.textContent = 'Erreur de connexion.';
-    chat.appendChild(pErr);
+  } catch {
+    loader.remove();
+    ajouterBulle('bot', 'Impossible de joindre le serveur.', true);
   } finally {
-    input.disabled = btnEnvoyer.disabled = false;
-    input.focus();
-    chat.scrollTop = chat.scrollHeight;
+    inputEl.disabled = btnEnvoyer.disabled = false;
+    inputEl.focus();
   }
 }
 
-function escapeHtml(t) {
+function ajouterBulle(role, texte, erreur = false) {
+  const p = document.createElement('div');
+  p.style.cssText = `
+    align-self:${role === 'user' ? 'flex-end' : 'flex-start'};
+    max-width:82%;
+    background:${erreur ? 'rgba(239,68,68,.12)' : role === 'user' ? 'rgba(245,158,11,.15)' : 'var(--surface-2)'};
+    color:${erreur ? '#fca5a5' : role === 'user' ? 'var(--accent-2)' : 'var(--text-dim)'};
+    border-radius:12px;
+    border-${role === 'user' ? 'bottom-right' : 'bottom-left'}-radius:3px;
+    padding:.65rem .9rem;
+    font-size:.88rem;
+    line-height:1.55;
+  `;
+  p.innerHTML = renduMarkdown(texte);
+  chatBox.appendChild(p);
+  chatBox.scrollTop = chatBox.scrollHeight;
+  return p;
+}
+
+function ajouterLoader() {
+  const p = document.createElement('div');
+  p.style.cssText = 'align-self:flex-start;color:var(--text-muted);font-size:.85rem;padding:.4rem 0;';
+  p.innerHTML = '<span class="loader-dots"><span></span><span></span><span></span></span>';
+  chatBox.appendChild(p);
+  chatBox.scrollTop = chatBox.scrollHeight;
+  return p;
+}
+
+function echapper(t) {
   return t.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 }
-function markdownLight(t) {
-  return escapeHtml(t)
-    .replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>')
-    .replace(/\*(.+?)\*/g,'<em>$1</em>')
-    .replace(/^- (.+)$/gm,'<li>$1</li>')
-    .replace(/(<li>[\s\S]*?<\/li>)/g,'<ul style="margin:.3rem 0 .3rem 1.2rem;padding:0;">$1</ul>')
-    .replace(/\n/g,'<br>');
+function renduMarkdown(t) {
+  return echapper(t)
+    .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+    .replace(/\*(.+?)\*/g, '<em>$1</em>')
+    .replace(/^[-•] (.+)$/gm, '<li>$1</li>')
+    .replace(/(<li>[\s\S]*?<\/li>)/g, '<ul style="margin:.3rem 0 .3rem 1.1rem;padding:0;">$1</ul>')
+    .replace(/\n/g, '<br>');
 }
 </script>
+
+<style>
+.loader-dots { display:inline-flex; gap:4px; align-items:center; }
+.loader-dots span {
+  width:6px; height:6px; border-radius:50%;
+  background:var(--text-muted);
+  animation:dotPulse 1.4s ease-in-out infinite;
+}
+.loader-dots span:nth-child(2) { animation-delay:.2s; }
+.loader-dots span:nth-child(3) { animation-delay:.4s; }
+@keyframes dotPulse { 0%,80%,100%{opacity:.2;transform:scale(.8)} 40%{opacity:1;transform:scale(1)} }
+</style>
 {% endblock %}
