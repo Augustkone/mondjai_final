@@ -624,7 +624,7 @@ REGLES :
         # 3. Appel du modèle Llama 3
         chat_completion = client.chat.completions.create(
             messages=groq_messages,
-            model="llama3-8b-8192" 
+           model="llama-3.1-8b-instant",   
         )
         
         # 4. Renvoi de la réponse au front-end
