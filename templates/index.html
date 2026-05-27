@@ -2,12 +2,134 @@
 {% block title %}Tableau de bord - Mondjai{% endblock %}
 
 {% block content %}
+
+<!-- Noto Serif + Public Sans pour cette page uniquement -->
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif:wght@400;600;700&family=Public+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+
+<style>
+  /* ── Overrides Alexandria pour index.html ── */
+  .page-title {
+    font-family: 'Noto Serif', serif;
+    font-size: clamp(1.8rem, 2.5vw, 2.4rem);
+    font-weight: 700;
+    letter-spacing: -.01em;
+    background: none;
+    -webkit-text-fill-color: unset;
+    color: #e6edf7;
+  }
+  .page-subtitle {
+    font-family: 'Public Sans', sans-serif;
+    font-size: .82rem;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+  }
+
+  /* Supprimer les barres verticales oranges */
+  .chart-title::before,
+  .card-title::before { display: none; }
+
+  .chart-title, .card-title {
+    font-family: 'Noto Serif', serif;
+    font-size: .95rem;
+    font-weight: 600;
+    color: #cbd5e1;
+    letter-spacing: -.01em;
+    margin-bottom: 1.1rem;
+    padding-bottom: .6rem;
+    border-bottom: 1px solid rgba(148,163,184,.08);
+  }
+
+  /* Bouton CTA Alexandria — gradient bleu */
+  .btn--alex {
+    background: linear-gradient(135deg, #094cb2 0%, #1d6ef5 60%, #3b82f6 100%);
+    color: #fff;
+    font-family: 'Public Sans', sans-serif;
+    font-size: .88rem;
+    font-weight: 600;
+    padding: .7rem 1.4rem;
+    border-radius: 8px;
+    border: none;
+    cursor: pointer;
+    text-decoration: none;
+    box-shadow: 0 6px 20px -6px rgba(9,76,178,.55);
+    transition: transform .2s, box-shadow .2s;
+    display: inline-flex; align-items: center; gap: .45rem;
+  }
+  .btn--alex:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 10px 28px -6px rgba(9,76,178,.7);
+  }
+
+  /* KPI labels Public Sans */
+  .kpi-label {
+    font-family: 'Public Sans', sans-serif;
+    font-size: .7rem;
+    letter-spacing: .12em;
+  }
+  .kpi-value {
+    font-family: 'Noto Serif', serif;
+    font-size: 1.75rem;
+  }
+
+  /* Cards — surface tonal (pas de bordure, décalage de fond) */
+  .chart-card, .card {
+    background: #0e1626;
+    border: 1px solid rgba(148,163,184,.07);
+    border-radius: 12px;
+  }
+  .chart-card:hover, .card:hover {
+    background: #111d30;
+    border-color: rgba(148,163,184,.11);
+  }
+
+  /* KPI accent card — or archival (tertiary Alexandria) */
+  .kpi-card--accent {
+    background: radial-gradient(400px 200px at 100% 0%,
+      rgba(109,94,0,.18), transparent 60%), #0e1626;
+    border-color: rgba(109,94,0,.3) !important;
+  }
+
+  /* Labels de catégorie */
+  .cat-nom {
+    font-family: 'Public Sans', sans-serif;
+    font-size: .82rem;
+    letter-spacing: .04em;
+  }
+
+  /* Glassmorphism sur le mini chat */
+  #chat-zone {
+    background: rgba(14,22,38,.75);
+    backdrop-filter: blur(20px) saturate(140%);
+    border: 1px solid rgba(148,163,184,.09);
+    border-radius: 12px;
+  }
+
+  /* Input chat */
+  #user-input:focus { border-color: #094cb2 !important; box-shadow: 0 0 0 3px rgba(9,76,178,.18); }
+
+  /* Bouton envoyer chat */
+  #btn-envoyer {
+    background: linear-gradient(135deg, #094cb2, #1d6ef5) !important;
+    color: #fff !important;
+  }
+
+  /* Barre budget — accent or */
+  .budget-fill-ok     { background: linear-gradient(90deg,#6d5e00,#a88d00); }
+  .budget-fill-warn   { background: linear-gradient(90deg,#b45309,#d97706); }
+  .budget-fill-danger { background: linear-gradient(90deg,#991b1b,#ef4444); }
+</style>
+
+<!-- En-tête -->
 <div class="page-header">
   <div>
     <h1 class="page-title">Tableau de bord</h1>
     <p class="page-subtitle">{{ mois_nom }} {{ annee }}</p>
   </div>
-  <a href="{{ url_for('ajouter') }}" class="btn btn--primary">+ Nouvelle dépense</a>
+  <a href="{{ url_for('ajouter') }}" class="btn--alex">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+    Nouvelle dépense
+  </a>
 </div>
 
 <!-- KPI -->
@@ -25,19 +147,19 @@
     {% endif %}
   </div>
   <div class="kpi-card">
-    <div class="kpi-label">Nb dépenses</div>
+    <div class="kpi-label">Dépenses</div>
     <div class="kpi-value">{{ stats.nb_depenses }}</div>
     <div class="kpi-sub">{{ stats.nb_jours_actifs }} jours actifs</div>
   </div>
   <div class="kpi-card">
-    <div class="kpi-label">Moyenne journalière</div>
+    <div class="kpi-label">Moyenne / jour</div>
     <div class="kpi-value">
       {{ "{:,.0f}".format(stats.moyenne_journaliere).replace(","," ") }}
       <span class="kpi-currency">FCFA</span>
     </div>
   </div>
   <div class="kpi-card">
-    <div class="kpi-label">Par dépense</div>
+    <div class="kpi-label">Moyenne / dépense</div>
     <div class="kpi-value">
       {{ "{:,.0f}".format(stats.moyenne_par_depense).replace(","," ") }}
       <span class="kpi-currency">FCFA</span>
@@ -47,65 +169,72 @@
 
 <!-- BARRE BUDGET -->
 {% if budget_info and budget_info.montant_budget > 0 %}
-<div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);
-            padding:1.25rem 1.5rem;margin-bottom:1.5rem;
-            border-left:3px solid {% if pourcentage_budget >= 100 %}var(--danger){% elif pourcentage_budget >= budget_info.seuil_alerte %}var(--accent){% else %}var(--success){% endif %};">
-  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.75rem;flex-wrap:wrap;gap:.5rem;">
-    <span style="font-size:.82rem;font-weight:600;color:var(--text-dim);text-transform:uppercase;letter-spacing:.08em;">
+<div style="background:#0e1626;border:1px solid rgba(148,163,184,.07);border-radius:12px;
+            padding:1.1rem 1.4rem;margin-bottom:1.5rem;">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.65rem;flex-wrap:wrap;gap:.5rem;">
+    <span style="font-family:'Public Sans',sans-serif;font-size:.72rem;letter-spacing:.1em;
+                 text-transform:uppercase;color:var(--text-muted);">
       Budget {{ mois_nom }}
     </span>
     <div style="display:flex;align-items:center;gap:1rem;">
-      <span style="font-size:.85rem;color:var(--text-dim);">
+      <span style="font-family:'Public Sans',sans-serif;font-size:.82rem;color:var(--text-dim);">
         {{ "{:,.0f}".format(stats.total_mois).replace(","," ") }} /
         {{ "{:,.0f}".format(budget_info.montant_budget).replace(","," ") }} FCFA
       </span>
-      <span style="font-size:.82rem;font-weight:700;padding:.2rem .7rem;border-radius:999px;
-                   background:{% if pourcentage_budget >= 100 %}rgba(239,68,68,.15){% elif pourcentage_budget >= budget_info.seuil_alerte %}rgba(245,158,11,.15){% else %}rgba(16,185,129,.15){% endif %};
-                   color:{% if pourcentage_budget >= 100 %}var(--danger){% elif pourcentage_budget >= budget_info.seuil_alerte %}var(--accent){% else %}var(--success){% endif %};">
+      <span style="font-family:'Public Sans',sans-serif;font-size:.78rem;font-weight:600;
+                   padding:.2rem .65rem;border-radius:999px;
+                   background:{% if pourcentage_budget >= 100 %}rgba(153,27,27,.2){% elif pourcentage_budget >= budget_info.seuil_alerte %}rgba(180,83,9,.2){% else %}rgba(109,94,0,.2){% endif %};
+                   color:{% if pourcentage_budget >= 100 %}#fca5a5{% elif pourcentage_budget >= budget_info.seuil_alerte %}#fcd34d{% else %}#a88d00{% endif %};">
         {{ pourcentage_budget }}%
       </span>
-      <a href="{{ url_for('budget') }}" style="font-size:.8rem;color:var(--accent);text-decoration:none;font-weight:600;">Modifier</a>
+      <a href="{{ url_for('budget') }}"
+         style="font-family:'Public Sans',sans-serif;font-size:.78rem;color:#1d6ef5;
+                text-decoration:none;font-weight:600;">Modifier</a>
     </div>
   </div>
-  <div style="height:8px;background:var(--surface-3);border-radius:9999px;overflow:hidden;">
-    <div style="height:100%;border-radius:9999px;transition:width .6s cubic-bezier(.21,1.02,.73,1);
-                width:{{ [pourcentage_budget,100]|min }}%;
-                background:{% if pourcentage_budget >= 100 %}var(--danger){% elif pourcentage_budget >= budget_info.seuil_alerte %}var(--accent){% else %}var(--success){% endif %};"></div>
+  <div style="height:6px;background:rgba(148,163,184,.08);border-radius:9999px;overflow:hidden;">
+    <div style="height:100%;border-radius:9999px;width:{{ [pourcentage_budget,100]|min }}%;transition:width .6s;
+                {% if pourcentage_budget >= 100 %}background:linear-gradient(90deg,#991b1b,#ef4444);
+                {% elif pourcentage_budget >= budget_info.seuil_alerte %}background:linear-gradient(90deg,#b45309,#d97706);
+                {% else %}background:linear-gradient(90deg,#6d5e00,#a88d00);{% endif %}"></div>
   </div>
   {% if budget_info.objectif %}
-  <div style="margin-top:.6rem;font-size:.8rem;color:var(--text-muted);">
+  <div style="margin-top:.55rem;font-family:'Public Sans',sans-serif;font-size:.78rem;color:var(--text-muted);">
     Objectif : {{ budget_info.objectif }}{% if budget_info.objectif_montant > 0 %} — {{ "{:,.0f}".format(budget_info.objectif_montant).replace(","," ") }} FCFA{% endif %}
   </div>
   {% endif %}
 </div>
 
 {% if alerte_budget %}
-<div style="display:flex;align-items:center;gap:1rem;padding:1rem 1.25rem;border-radius:var(--radius);
+<div style="display:flex;align-items:center;gap:1rem;padding:.9rem 1.25rem;border-radius:10px;
             margin-bottom:1.5rem;flex-wrap:wrap;
-            background:{% if alerte_budget.critique %}rgba(239,68,68,.08){% else %}rgba(245,158,11,.08){% endif %};
-            border:1px solid {% if alerte_budget.critique %}rgba(239,68,68,.3){% else %}rgba(245,158,11,.3){% endif %};">
-  <div style="flex:1;font-size:.9rem;color:var(--text);">
-    <strong>{% if alerte_budget.critique %}Limite atteinte —{% else %}Budget à surveiller —{% endif %}</strong>
+            background:{% if alerte_budget.critique %}rgba(153,27,27,.1){% else %}rgba(180,83,9,.1){% endif %};
+            border:1px solid {% if alerte_budget.critique %}rgba(239,68,68,.2){% else %}rgba(217,119,6,.2){% endif %};">
+  <div style="flex:1;font-family:'Public Sans',sans-serif;font-size:.88rem;color:var(--text);">
+    <strong>{% if alerte_budget.critique %}Limite mensuelle atteinte.{% else %}Budget à surveiller.{% endif %}</strong>
     {{ alerte_budget.pourcentage }}% consommé.
     {% if alerte_budget.restant > 0 %}
       Reste {{ "{:,.0f}".format(alerte_budget.restant).replace(","," ") }} FCFA.
     {% endif %}
   </div>
-  <a href="{{ url_for('chat_ia') }}"
-     style="font-size:.82rem;font-weight:600;padding:.4rem 1rem;border-radius:var(--radius-sm);text-decoration:none;
-            background:{% if alerte_budget.critique %}var(--danger){% else %}var(--accent){% endif %};
-            color:{% if alerte_budget.critique %}#fff{% else %}#1a1206{% endif %};">
+  <a href="{{ url_for('chat_ia') }}" class="btn--alex" style="font-size:.8rem;padding:.4rem .9rem;">
     Obtenir des conseils
   </a>
 </div>
 {% endif %}
 
 {% else %}
-<div style="background:var(--surface);border:1px dashed var(--border);border-radius:var(--radius);
-            padding:.9rem 1.5rem;margin-bottom:1.5rem;
+<div style="background:#0e1626;border:1px dashed rgba(148,163,184,.1);border-radius:10px;
+            padding:.85rem 1.4rem;margin-bottom:1.5rem;
             display:flex;align-items:center;justify-content:space-between;">
-  <span style="color:var(--text-muted);font-size:.88rem;">Aucun budget défini pour ce mois</span>
-  <a href="{{ url_for('budget') }}" style="color:var(--accent);text-decoration:none;font-weight:600;font-size:.88rem;">Définir un budget</a>
+  <span style="font-family:'Public Sans',sans-serif;font-size:.82rem;color:var(--text-muted);">
+    Aucun budget défini pour ce mois
+  </span>
+  <a href="{{ url_for('budget') }}"
+     style="font-family:'Public Sans',sans-serif;font-size:.82rem;
+            color:#1d6ef5;text-decoration:none;font-weight:600;">
+    Définir un budget
+  </a>
 </div>
 {% endif %}
 
@@ -113,67 +242,74 @@
 <div class="charts-grid">
   <div class="chart-card chart-card--wide">
     <h2 class="chart-title">Évolution des dépenses — 30 jours</h2>
-    <div style="display:flex;gap:1.5rem;margin-bottom:1rem;flex-wrap:wrap;">
-      <div style="font-size:.78rem;color:var(--text-muted);">
-        <span style="display:inline-block;width:10px;height:10px;background:var(--accent);border-radius:2px;margin-right:.35rem;"></span>
-        Dépense journalière
-      </div>
-      <div style="font-size:.78rem;color:var(--text-muted);">
-        <span style="display:inline-block;width:20px;height:2px;background:#60a5fa;border-radius:2px;margin-right:.35rem;vertical-align:middle;"></span>
+    <div style="display:flex;gap:1.25rem;margin-bottom:.85rem;">
+      <span style="font-family:'Public Sans',sans-serif;font-size:.72rem;letter-spacing:.06em;
+                   color:var(--text-muted);display:flex;align-items:center;gap:.4rem;">
+        <span style="width:10px;height:10px;background:#6d5e00;border-radius:2px;display:inline-block;"></span>
+        Dépense
+      </span>
+      <span style="font-family:'Public Sans',sans-serif;font-size:.72rem;letter-spacing:.06em;
+                   color:var(--text-muted);display:flex;align-items:center;gap:.4rem;">
+        <span style="width:18px;height:2px;background:#1d6ef5;display:inline-block;border-radius:2px;"></span>
         Tendance
-      </div>
+      </span>
     </div>
-    <div class="chart-wrap" style="height:260px;"><canvas id="chartEvolution"></canvas></div>
+    <div class="chart-wrap" style="height:255px;"><canvas id="chartEvolution"></canvas></div>
   </div>
   <div class="chart-card">
     <h2 class="chart-title">Répartition</h2>
-    <div class="chart-wrap chart-wrap--donut" style="height:220px;"><canvas id="chartRepartition"></canvas></div>
+    <div class="chart-wrap chart-wrap--donut" style="height:225px;"><canvas id="chartRepartition"></canvas></div>
   </div>
 </div>
 
-<!-- CONSEILLER + CATEGORIES + RECENTES -->
-<div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1rem;">
-
-  <!-- MINI CHAT -->
-  <div class="card" style="grid-column:1/-1;">
-    <h2 class="card-title">Conseiller financier</h2>
-    <div id="chat-messages"
-         style="height:200px;overflow-y:auto;margin-bottom:.75rem;padding:1rem;
-                background:var(--bg-soft);border-radius:var(--radius-sm);
-                border:1px solid var(--border);display:flex;flex-direction:column;gap:.5rem;">
-      <div style="align-self:flex-start;max-width:80%;background:var(--surface-2);
-                  border-radius:12px;border-bottom-left-radius:3px;padding:.65rem .9rem;
-                  font-size:.88rem;color:var(--text-dim);line-height:1.5;">
-        Bonjour {{ session.utilisateur_nom }}. Je suis votre conseiller financier personnel.
-        Posez-moi une question sur vos dépenses, votre budget ou vos objectifs d'épargne.
-      </div>
+<!-- MINI CHAT IA -->
+<div id="chat-zone" style="padding:1.4rem;margin-bottom:1.25rem;">
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem;">
+    <h2 style="font-family:'Noto Serif',serif;font-size:.95rem;font-weight:600;
+               color:#cbd5e1;margin:0;">Conseiller financier</h2>
+    <a href="{{ url_for('chat_ia') }}"
+       style="font-family:'Public Sans',sans-serif;font-size:.75rem;
+              color:#1d6ef5;text-decoration:none;letter-spacing:.04em;">
+      Conversation complète →
+    </a>
+  </div>
+  <div id="chat-messages"
+       style="height:190px;overflow-y:auto;margin-bottom:.75rem;
+              padding:.85rem 1rem;border-radius:8px;
+              background:rgba(5,8,15,.5);
+              display:flex;flex-direction:column;gap:.5rem;
+              scrollbar-width:thin;scrollbar-color:rgba(148,163,184,.15) transparent;">
+    <div style="align-self:flex-start;max-width:82%;
+                background:rgba(14,22,38,.9);
+                border:1px solid rgba(148,163,184,.08);
+                border-radius:10px;border-bottom-left-radius:3px;
+                padding:.65rem .9rem;
+                font-family:'Public Sans',sans-serif;font-size:.86rem;
+                color:var(--text-dim);line-height:1.55;">
+      Bonjour {{ session.utilisateur_nom }}.
+      Je suis votre conseiller financier personnel. Comment puis-je vous aider ?
     </div>
-    <div style="display:flex;gap:.6rem;">
-      <input type="text" id="user-input"
-             placeholder="Votre question..."
-             style="flex:1;padding:.65rem 1rem;border-radius:var(--radius-sm);
-                    border:1px solid var(--border);background:var(--surface);
-                    color:var(--text);font-size:.9rem;font-family:inherit;outline:none;
-                    transition:border-color .2s;" />
-      <button id="btn-envoyer" onclick="envoyerMessage()"
-              style="padding:.65rem 1.25rem;background:var(--grad-accent);border:none;
-                     border-radius:var(--radius-sm);cursor:pointer;font-weight:600;
-                     color:#1a1206;font-size:.88rem;font-family:inherit;white-space:nowrap;
-                     transition:opacity .2s;">
-        Envoyer
-      </button>
-    </div>
-    <div style="margin-top:.5rem;font-size:.75rem;color:var(--text-muted);display:flex;justify-content:space-between;align-items:center;">
-      <span>Entrée pour envoyer</span>
-      <a href="{{ url_for('chat_ia') }}" style="color:var(--accent);text-decoration:none;font-weight:600;">
-        Conversation complète →
-      </a>
-    </div>
+  </div>
+  <div style="display:flex;gap:.6rem;">
+    <input type="text" id="user-input"
+           placeholder="Posez votre question..."
+           style="flex:1;padding:.65rem 1rem;border-radius:8px;
+                  border:1px solid rgba(148,163,184,.12);
+                  background:rgba(255,255,255,.04);
+                  color:var(--text);font-size:.88rem;
+                  font-family:'Public Sans',sans-serif;outline:none;
+                  transition:border-color .2s,box-shadow .2s;" />
+    <button id="btn-envoyer" onclick="envoyerMessage()"
+            style="padding:.65rem 1.2rem;border:none;border-radius:8px;
+                   cursor:pointer;font-weight:600;font-family:'Public Sans',sans-serif;
+                   font-size:.85rem;white-space:nowrap;transition:opacity .2s;">
+      Envoyer
+    </button>
   </div>
 </div>
 
+<!-- CATEGORIES + DERNIÈRES DÉPENSES -->
 <div class="bottom-grid">
-  <!-- CATEGORIES -->
   <div class="card">
     <h2 class="card-title">Catégories du mois</h2>
     {% set totaux_nonzero = totaux | selectattr('total', 'gt', 0) | list %}
@@ -184,45 +320,57 @@
         <div class="cat-icone">{{ cat.icone }}</div>
         <div class="cat-info">
           <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:.3rem;">
-            <span class="cat-nom" style="margin-bottom:0;">{{ cat.categorie }}</span>
-            <span style="font-size:.85rem;font-weight:600;color:var(--text);">
+            <span class="cat-nom">{{ cat.categorie }}</span>
+            <span style="font-family:'Public Sans',sans-serif;font-size:.82rem;
+                         font-weight:600;color:var(--text);">
               {{ "{:,.0f}".format(cat.total).replace(","," ") }} FCFA
             </span>
           </div>
-          <div class="progress-bar">
-            <div class="progress-bar__fill"
-                 style="width:{% if stats.total_mois > 0 %}{{ ((cat.total / stats.total_mois) * 100) | round(1) }}%{% else %}0%{% endif %};background:{{ cat.couleur }};box-shadow:none;"></div>
+          <div style="height:5px;background:rgba(148,163,184,.08);border-radius:9999px;overflow:hidden;">
+            <div style="height:100%;border-radius:9999px;background:{{ cat.couleur }};
+                        width:{% if stats.total_mois > 0 %}{{ ((cat.total/stats.total_mois)*100)|round(1) }}%{% else %}0%{% endif %};
+                        transition:width .8s;"></div>
           </div>
         </div>
       </li>
       {% endfor %}
     </ul>
     {% else %}
-    <p class="empty-state">Aucune dépense ce mois.</p>
+    <p class="empty-state" style="font-family:'Public Sans',sans-serif;">Aucune dépense ce mois.</p>
     {% endif %}
   </div>
 
-  <!-- DERNIERES DEPENSES -->
   <div class="card">
     <h2 class="card-title">Dernières dépenses</h2>
     {% if dernieres %}
     <ul class="recent-list">
       {% for dep in dernieres %}
       <li class="recent-item">
-        <div class="recent-icone" style="background:{{ dep.couleur }}22;">
-          {{ dep.icone }}
-        </div>
+        <div class="recent-icone" style="background:{{ dep.couleur }}18;">{{ dep.icone }}</div>
         <div class="recent-info">
-          <span class="recent-desc">{{ dep.description or dep.categorie }}</span>
-          <span class="recent-date">{{ dep.date_depense }} · {{ dep.categorie }}</span>
+          <span class="recent-desc" style="font-family:'Public Sans',sans-serif;font-size:.86rem;">
+            {{ dep.description or dep.categorie }}
+          </span>
+          <span class="recent-date" style="font-family:'Public Sans',sans-serif;font-size:.72rem;letter-spacing:.04em;">
+            {{ dep.date_depense }} &middot; {{ dep.categorie }}
+          </span>
         </div>
-        <span class="recent-montant">{{ "{:,.0f}".format(dep.montant).replace(","," ") }} FCFA</span>
+        <span style="font-family:'Noto Serif',serif;font-size:.9rem;font-weight:600;
+                     color:#a88d00;white-space:nowrap;">
+          {{ "{:,.0f}".format(dep.montant).replace(","," ") }} FCFA
+        </span>
       </li>
       {% endfor %}
     </ul>
-    <a href="{{ url_for('historique') }}" class="link-more">Voir tout l'historique</a>
+    <a href="{{ url_for('historique') }}"
+       style="display:block;text-align:center;margin-top:1rem;padding-top:.85rem;
+              border-top:1px solid rgba(148,163,184,.07);
+              font-family:'Public Sans',sans-serif;font-size:.78rem;
+              letter-spacing:.06em;color:#1d6ef5;text-decoration:none;">
+      Voir tout l'historique
+    </a>
     {% else %}
-    <p class="empty-state">Aucune dépense enregistrée.</p>
+    <p class="empty-state" style="font-family:'Public Sans',sans-serif;">Aucune dépense enregistrée.</p>
     {% endif %}
   </div>
 </div>
@@ -233,116 +381,89 @@
 const evolutionData   = {{ evolution  | tojson }};
 const repartitionData = {{ totaux     | tojson }};
 
-// ── Graphique évolution : barres + ligne de tendance ─────────────
+// ── Graphique évolution : barres or + ligne bleue ──────────────
 (function () {
   const ctx = document.getElementById('chartEvolution');
   if (!ctx) return;
-
   if (!evolutionData.length) {
     ctx.parentElement.innerHTML =
-      '<p style="color:var(--text-muted);text-align:center;padding:3rem 1rem;font-size:.9rem;">Aucune dépense sur les 30 derniers jours.</p>';
+      '<p style="color:var(--text-muted);text-align:center;padding:3rem;font-family:Public Sans,sans-serif;font-size:.88rem;">Aucune dépense sur 30 jours.</p>';
     return;
   }
 
-  const labels  = evolutionData.map(d => {
-    const [y, m, j] = d.jour.split('-');
+  const labels = evolutionData.map(d => {
+    const [,m,j] = d.jour.split('-');
     return `${j}/${m}`;
   });
-  const values  = evolutionData.map(d => parseFloat(d.total) || 0);
+  const values = evolutionData.map(d => parseFloat(d.total) || 0);
 
-  // Calcul ligne de tendance (régression linéaire simple)
-  const n     = values.length;
-  const sumX  = values.reduce((a, _, i) => a + i, 0);
-  const sumY  = values.reduce((a, v) => a + v, 0);
-  const sumXY = values.reduce((a, v, i) => a + i * v, 0);
-  const sumX2 = values.reduce((a, _, i) => a + i * i, 0);
-  const slope = (n * sumXY - sumX * sumY) / (n * sumX2 - sumX * sumX);
-  const inter = (sumY - slope * sumX) / n;
-  const trend = values.map((_, i) => Math.round(inter + slope * i));
+  // Tendance linéaire
+  const n    = values.length;
+  const sumX = values.reduce((a,_,i) => a+i, 0);
+  const sumY = values.reduce((a,v) => a+v, 0);
+  const sumXY= values.reduce((a,v,i) => a+i*v, 0);
+  const sumX2= values.reduce((a,_,i) => a+i*i, 0);
+  const sl   = (n*sumXY - sumX*sumY) / (n*sumX2 - sumX*sumX);
+  const ic   = (sumY - sl*sumX) / n;
+  const trend= values.map((_,i) => Math.round(ic + sl*i));
 
   new Chart(ctx, {
     data: {
       labels,
       datasets: [
         {
-          type: 'bar',
-          label: 'Dépenses (FCFA)',
-          data: values,
+          type: 'bar', label: 'Dépenses (FCFA)', data: values, order: 2,
           backgroundColor: values.map(v =>
-            v === Math.max(...values)
-              ? 'rgba(245,158,11,.85)'
-              : 'rgba(245,158,11,.35)'
+            v === Math.max(...values) ? 'rgba(109,94,0,.85)' : 'rgba(109,94,0,.35)'
           ),
-          borderColor: 'rgba(245,158,11,.7)',
-          borderWidth: 1,
-          borderRadius: 4,
-          order: 2,
+          borderColor: 'rgba(109,94,0,.6)',
+          borderWidth: 1, borderRadius: 3,
         },
         {
-          type: 'line',
-          label: 'Tendance',
-          data: trend,
-          borderColor: '#60a5fa',
-          borderWidth: 2,
-          borderDash: [4, 4],
-          pointRadius: 0,
-          fill: false,
-          tension: 0.3,
-          order: 1,
+          type: 'line', label: 'Tendance', data: trend, order: 1,
+          borderColor: '#1d6ef5', borderWidth: 2,
+          borderDash: [5,4], pointRadius: 0, fill: false, tension: 0.3,
         }
       ]
     },
     options: {
-      responsive: true,
-      maintainAspectRatio: false,
+      responsive: true, maintainAspectRatio: false,
       interaction: { mode: 'index', intersect: false },
       plugins: {
         legend: { display: false },
         tooltip: {
-          backgroundColor: 'rgba(14,22,38,.95)',
-          titleColor: '#94a3b8',
-          bodyColor: '#e6edf7',
-          borderColor: 'rgba(148,163,184,.15)',
-          borderWidth: 1,
-          padding: 10,
+          backgroundColor: 'rgba(5,8,15,.92)',
+          titleColor: '#64748b', bodyColor: '#e6edf7',
+          borderColor: 'rgba(148,163,184,.1)', borderWidth: 1, padding: 10,
+          titleFont: { family: 'Public Sans, sans-serif', size: 11 },
+          bodyFont:  { family: 'Public Sans, sans-serif', size: 12 },
           callbacks: {
-            label: ctx =>
-              ctx.dataset.label + ' : ' +
-              ctx.parsed.y.toLocaleString('fr-FR') + ' FCFA'
+            label: c => ` ${c.dataset.label} : ${c.parsed.y.toLocaleString('fr-FR')} FCFA`
           }
         }
       },
       scales: {
-        x: {
-          grid: { color: 'rgba(148,163,184,.07)', drawBorder: false },
-          ticks: { color: '#64748b', font: { size: 11 }, maxTicksLimit: 12 }
-        },
-        y: {
-          grid: { color: 'rgba(148,163,184,.07)', drawBorder: false },
-          ticks: {
-            color: '#64748b',
-            font: { size: 11 },
-            callback: v => v >= 1000 ? (v/1000).toFixed(0) + 'k' : v
-          }
-        }
+        x: { grid: { color: 'rgba(148,163,184,.05)' },
+             ticks: { color: '#64748b', font: { size: 10, family: 'Public Sans, sans-serif' }, maxTicksLimit: 12 } },
+        y: { grid: { color: 'rgba(148,163,184,.05)' },
+             ticks: { color: '#64748b', font: { size: 10, family: 'Public Sans, sans-serif' },
+                      callback: v => v >= 1000 ? (v/1000).toFixed(0)+'k' : v } }
       }
     }
   });
 })();
 
-// ── Graphique répartition : donut ─────────────────────────────────
+// ── Graphique répartition donut ───────────────────────────────
 (function () {
   const ctx      = document.getElementById('chartRepartition');
   if (!ctx) return;
   const filtered = repartitionData.filter(d => parseFloat(d.total) > 0);
-
   if (!filtered.length) {
     ctx.parentElement.innerHTML =
-      '<p style="color:var(--text-muted);text-align:center;padding:3rem 1rem;font-size:.9rem;">Aucune dépense ce mois.</p>';
+      '<p style="color:var(--text-muted);text-align:center;padding:3rem;font-family:Public Sans,sans-serif;font-size:.88rem;">Aucune dépense ce mois.</p>';
     return;
   }
-
-  const total = filtered.reduce((s, d) => s + parseFloat(d.total), 0);
+  const total = filtered.reduce((s,d) => s + parseFloat(d.total), 0);
 
   new Chart(ctx, {
     type: 'doughnut',
@@ -351,33 +472,27 @@ const repartitionData = {{ totaux     | tojson }};
       datasets: [{
         data:            filtered.map(d => parseFloat(d.total)),
         backgroundColor: filtered.map(d => d.couleur || '#6b7280'),
-        borderColor:     'var(--bg)',
+        borderColor:     'rgba(5,8,15,.9)',
         borderWidth:     3,
         hoverOffset:     6,
       }]
     },
     options: {
-      responsive: true,
-      maintainAspectRatio: false,
-      cutout: '68%',
+      responsive: true, maintainAspectRatio: false, cutout: '68%',
       plugins: {
         legend: {
           position: 'bottom',
-          labels: {
-            color: '#94a3b8', font: { size: 11 },
-            padding: 12, usePointStyle: true, pointStyleWidth: 8,
-          }
+          labels: { color: '#94a3b8', font: { size: 10, family: 'Public Sans, sans-serif' },
+                    padding: 12, usePointStyle: true, pointStyleWidth: 7 }
         },
         tooltip: {
-          backgroundColor: 'rgba(14,22,38,.95)',
-          titleColor: '#94a3b8',
-          bodyColor: '#e6edf7',
-          borderColor: 'rgba(148,163,184,.15)',
-          borderWidth: 1,
+          backgroundColor: 'rgba(5,8,15,.92)',
+          titleColor: '#64748b', bodyColor: '#e6edf7',
+          borderColor: 'rgba(148,163,184,.1)', borderWidth: 1,
           callbacks: {
-            label: ctx => {
-              const pct = ((ctx.parsed / total) * 100).toFixed(1);
-              return ` ${ctx.parsed.toLocaleString('fr-FR')} FCFA (${pct}%)`;
+            label: c => {
+              const pct = ((c.parsed/total)*100).toFixed(1);
+              return ` ${c.parsed.toLocaleString('fr-FR')} FCFA (${pct}%)`;
             }
           }
         }
@@ -386,14 +501,12 @@ const repartitionData = {{ totaux     | tojson }};
   });
 })();
 
-// ── Mini chat ─────────────────────────────────────────────────────
+// ── Mini chat ─────────────────────────────────────────────────
 const inputEl     = document.getElementById('user-input');
 const chatBox     = document.getElementById('chat-messages');
 const btnEnvoyer  = document.getElementById('btn-envoyer');
 const chatHistory = [];
 
-inputEl.addEventListener('focus', () => { inputEl.style.borderColor = 'var(--accent)'; });
-inputEl.addEventListener('blur',  () => { inputEl.style.borderColor = 'var(--border)'; });
 inputEl.addEventListener('keypress', e => {
   if (e.key === 'Enter') { e.preventDefault(); envoyerMessage(); }
 });
@@ -401,23 +514,20 @@ inputEl.addEventListener('keypress', e => {
 async function envoyerMessage() {
   const msg = inputEl.value.trim();
   if (!msg) return;
-
   ajouterBulle('user', msg);
   chatHistory.push({ role: 'user', content: msg });
   inputEl.value = '';
   inputEl.disabled = btnEnvoyer.disabled = true;
+  btnEnvoyer.style.opacity = '.5';
 
   const loader = ajouterLoader();
-
   try {
     const res  = await fetch('/api/chat-ia', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ messages: chatHistory })
     });
     const data = await res.json();
     loader.remove();
-
     if (data.response) {
       chatHistory.push({ role: 'assistant', content: data.response });
       ajouterBulle('bot', data.response);
@@ -429,24 +539,26 @@ async function envoyerMessage() {
     ajouterBulle('bot', 'Impossible de joindre le serveur.', true);
   } finally {
     inputEl.disabled = btnEnvoyer.disabled = false;
+    btnEnvoyer.style.opacity = '1';
     inputEl.focus();
   }
 }
 
-function ajouterBulle(role, texte, erreur = false) {
+function ajouterBulle(role, texte, err = false) {
   const p = document.createElement('div');
   p.style.cssText = `
-    align-self:${role === 'user' ? 'flex-end' : 'flex-start'};
+    align-self:${role==='user'?'flex-end':'flex-start'};
     max-width:82%;
-    background:${erreur ? 'rgba(239,68,68,.12)' : role === 'user' ? 'rgba(245,158,11,.15)' : 'var(--surface-2)'};
-    color:${erreur ? '#fca5a5' : role === 'user' ? 'var(--accent-2)' : 'var(--text-dim)'};
-    border-radius:12px;
-    border-${role === 'user' ? 'bottom-right' : 'bottom-left'}-radius:3px;
-    padding:.65rem .9rem;
-    font-size:.88rem;
-    line-height:1.55;
+    background:${err ? 'rgba(153,27,27,.15)' : role==='user' ? 'rgba(9,76,178,.18)' : 'rgba(14,22,38,.9)'};
+    border:1px solid ${err ? 'rgba(239,68,68,.15)' : role==='user' ? 'rgba(29,110,245,.2)' : 'rgba(148,163,184,.07)'};
+    color:${err ? '#fca5a5' : role==='user' ? '#93c5fd' : 'var(--text-dim)'};
+    border-radius:10px;
+    border-${role==='user'?'bottom-right':'bottom-left'}-radius:2px;
+    padding:.6rem .9rem;
+    font-family:'Public Sans',sans-serif;
+    font-size:.85rem;line-height:1.55;
   `;
-  p.innerHTML = renduMarkdown(texte);
+  p.innerHTML = renduMd(texte);
   chatBox.appendChild(p);
   chatBox.scrollTop = chatBox.scrollHeight;
   return p;
@@ -454,35 +566,30 @@ function ajouterBulle(role, texte, erreur = false) {
 
 function ajouterLoader() {
   const p = document.createElement('div');
-  p.style.cssText = 'align-self:flex-start;color:var(--text-muted);font-size:.85rem;padding:.4rem 0;';
-  p.innerHTML = '<span class="loader-dots"><span></span><span></span><span></span></span>';
+  p.style.cssText = 'align-self:flex-start;color:var(--text-muted);font-size:.85rem;padding:.35rem 0;display:flex;gap:5px;align-items:center;';
+  p.innerHTML = '<span class="ld"></span><span class="ld" style="animation-delay:.2s"></span><span class="ld" style="animation-delay:.4s"></span>';
   chatBox.appendChild(p);
   chatBox.scrollTop = chatBox.scrollHeight;
   return p;
 }
 
-function echapper(t) {
-  return t.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-}
-function renduMarkdown(t) {
-  return echapper(t)
-    .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
-    .replace(/\*(.+?)\*/g, '<em>$1</em>')
-    .replace(/^[-•] (.+)$/gm, '<li>$1</li>')
-    .replace(/(<li>[\s\S]*?<\/li>)/g, '<ul style="margin:.3rem 0 .3rem 1.1rem;padding:0;">$1</ul>')
-    .replace(/\n/g, '<br>');
+function echap(t) { return t.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+function renduMd(t) {
+  return echap(t)
+    .replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>')
+    .replace(/\*(.+?)\*/g,'<em>$1</em>')
+    .replace(/^[-•] (.+)$/gm,'<li>$1</li>')
+    .replace(/(<li>[\s\S]*?<\/li>)/g,'<ul style="margin:.3rem 0 .3rem 1rem;padding:0;">$1</ul>')
+    .replace(/\n/g,'<br>');
 }
 </script>
 
 <style>
-.loader-dots { display:inline-flex; gap:4px; align-items:center; }
-.loader-dots span {
-  width:6px; height:6px; border-radius:50%;
-  background:var(--text-muted);
-  animation:dotPulse 1.4s ease-in-out infinite;
+.ld {
+  width:6px;height:6px;border-radius:50%;
+  background:rgba(148,163,184,.4);display:inline-block;
+  animation:ldp 1.4s ease-in-out infinite;
 }
-.loader-dots span:nth-child(2) { animation-delay:.2s; }
-.loader-dots span:nth-child(3) { animation-delay:.4s; }
-@keyframes dotPulse { 0%,80%,100%{opacity:.2;transform:scale(.8)} 40%{opacity:1;transform:scale(1)} }
+@keyframes ldp { 0%,80%,100%{opacity:.2;transform:scale(.8)} 40%{opacity:1;transform:scale(1)} }
 </style>
 {% endblock %}
